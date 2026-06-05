@@ -5,19 +5,17 @@ import { supabase } from './supabase'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [session, setSession]   = useState(undefined) // undefined = chargement
+  const [session, setSession]   = useState(undefined)
   const [profil,  setProfil]    = useState(null)
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    // Session initiale
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       if (data.session) chargerProfil(data.session.user.id)
       else setLoading(false)
     })
 
-    // Écouter les changements d'auth
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) chargerProfil(session.user.id)
@@ -46,6 +44,9 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     await supabase.auth.signOut()
+    // Rechargement complet pour vider le store React
+    // et éviter toute contamination entre sessions
+    window.location.href = window.location.origin
   }
 
   const value = { session, profil, loading, login, logout, chargerProfil }
