@@ -114,7 +114,7 @@ function FormulaireUtilisateur({ etablissements, onCreated }) {
         </div>
         <div className="form-group">
           <label className="form-label">Mot de passe <span className="required">*</span></label>
-          <input className="form-input" type="password" value={form.password} onChange={e => set('password', e.target.value)} />
+          <input className="form-input" type="text" value={form.password} onChange={e => set('password', e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">Rôle</label>

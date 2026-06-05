@@ -10,7 +10,6 @@ import PageInscriptions from './pages/PageInscriptions'
 import PageAllocation from './pages/PageAllocation'
 import PageExport from './pages/PageExport'
 
-// Composant nom établissement avec support arabe
 function NomEtablissement({ nom, style }) {
   if (!nom) return null
   const hasArabic = /[\u0600-\u06FF]/.test(nom)
@@ -44,7 +43,6 @@ export default function App() {
   const nomsOnglets = config?.nomsOnglets || DEFAULT_CONFIG.nomsOnglets
   const nomEtab = profil.etablissements?.nom || ''
 
-  // Onglets selon rôle — opérateur peut maintenant lancer l'allocation
   const tousOnglets = [
     { id: 'config_salles',    roles: ['admin', 'superadmin'] },
     { id: 'config_interface', roles: ['admin', 'superadmin'] },
@@ -60,8 +58,18 @@ export default function App() {
       <header className="app-header no-print">
         <div className="header-left">
           {annee && (
-            <button onClick={reinitialiser} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 2 }}>
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={reinitialiser} style={{
+              background: 'rgba(255,255,255,0.15)',
+              border: '1.5px solid rgba(255,255,255,0.4)',
+              cursor: 'pointer',
+              padding: '5px 14px',
+              borderRadius: 6,
+              marginBottom: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+              <span style={{ fontSize: '0.92rem', color: 'white', fontWeight: 600 }}>
                 ← Changer d'année
               </span>
             </button>
@@ -79,20 +87,31 @@ export default function App() {
 
         <div className="header-right">
           {annee && (
-            <div className="header-stats">
-              {eleves.length} élève{eleves.length > 1 ? 's' : ''} · {allocation ? 'Allocation ✓' : 'Pas d\'allocation'}
+            <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 500 }}>
+              {eleves.length} élève{eleves.length > 1 ? 's' : ''} · {allocation ? '✓ Allocation' : 'Pas d\'allocation'}
             </div>
           )}
-          <div className="header-user">
-            {profil.prenom} {profil.nom} · <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{role}</strong>
+          <div style={{ fontSize: '0.88rem', color: 'white', fontWeight: 600 }}>
+            {profil.prenom} {profil.nom}
+            <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 400 }}>({role})</span>
           </div>
           {role === 'superadmin' && !annee && (
-            <button className="btn btn-ghost btn-sm" style={{ color: 'rgba(255,255,255,0.75)', borderColor: 'rgba(255,255,255,0.2)' }}
+            <button className="btn btn-sm" style={{
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: '1.5px solid rgba(255,255,255,0.5)',
+              fontWeight: 600,
+            }}
               onClick={() => setOnglet('superadmin')}>
               ⚙ Gestion Admin
             </button>
           )}
-          <button className="btn btn-ghost btn-sm" style={{ color: 'rgba(255,255,255,0.75)', borderColor: 'rgba(255,255,255,0.2)' }}
+          <button className="btn btn-sm" style={{
+            background: 'rgba(255,255,255,0.15)',
+            color: 'white',
+            border: '1.5px solid rgba(255,255,255,0.4)',
+            fontWeight: 600,
+          }}
             onClick={logout}>
             Déconnexion
           </button>
@@ -117,38 +136,38 @@ export default function App() {
             </div>
           )}
 
-          {/* Bannière établissement + année — visible partout dont à l'impression */}
+          {/* Bannière établissement */}
           <div className="etab-banner no-print" style={{
             background: '#16213e',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-            padding: '6px 28px',
+            borderBottom: '2px solid rgba(255,255,255,0.12)',
+            padding: '7px 28px',
             display: 'flex',
             alignItems: 'center',
             gap: 12,
           }}>
-            <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
               Établissement :
             </span>
             <NomEtablissement nom={nomEtab} style={{
-              fontSize: '0.9rem',
+              fontSize: '0.95rem',
               fontWeight: 700,
-              color: 'var(--accent2)',
+              color: '#fbbf24',
             }} />
             {annee && (
               <>
-                <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-                <span style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+                <span style={{ fontSize: '0.92rem', color: 'white', fontWeight: 600 }}>
                   {annee.label}
                 </span>
                 {anneeArchivee && (
-                  <span style={{ fontSize: '0.72rem', color: '#fbbf24', marginLeft: 4 }}>🔒 Archive</span>
+                  <span style={{ fontSize: '0.78rem', color: '#fbbf24', marginLeft: 4 }}>🔒 Archive</span>
                 )}
               </>
             )}
           </div>
 
-          {/* ── Onglets ── */}
-          <nav className="app-tabs no-print">
+          {/* ── Onglets sticky ── */}
+          <nav className="app-tabs no-print" style={{ position: 'sticky', top: '70px', zIndex: 90 }}>
             {ongletsFiltres.map(o => {
               const nom = nomsOnglets[o.id] || DEFAULT_CONFIG.nomsOnglets[o.id] || { icone: '', label: o.id }
               const hasArabic = /[\u0600-\u06FF]/.test(nom.label)
