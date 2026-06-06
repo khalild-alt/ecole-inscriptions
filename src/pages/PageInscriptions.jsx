@@ -399,6 +399,8 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
 
 export default function PageInscriptions({ lectureSeule }) {
   const { t, langue } = useI18n()
+  const { effacerToutesInscriptions, creerSauvegarde } = useApp()
+  const toast2 = useToast()
   const [eleveAEditer, setEleveAEditer] = useState(null)
 
   return (
