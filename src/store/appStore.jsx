@@ -19,6 +19,7 @@ export const DEFAULT_CONFIG = {
   ],
   modeCalculAge: 'annee',
   modeAllocationDefaut: 'B',
+  langue: 'fr',
   champs: [
     { id: 'prenom',        label: 'Prénom',           type: 'text',     obligatoire: true,  systeme: true, readonly: false },
     { id: 'nom',           label: 'Nom',               type: 'text',     obligatoire: true,  systeme: true, readonly: false },
@@ -32,6 +33,7 @@ export const DEFAULT_CONFIG = {
     inscriptions:     { icone: '✏️', label: 'Inscriptions' },
     allocation:       { icone: '📊', label: 'Allocation' },
     export:           { icone: '📤', label: 'Export' },
+    restauration:     { icone: '♻️', label: 'Restauration' },
   }
 }
 
@@ -44,6 +46,7 @@ export const TEST_CONFIG = {
   reglesAge: DEFAULT_CONFIG.reglesAge,
   modeCalculAge: 'annee',
   modeAllocationDefaut: 'B',
+  langue: 'fr',
   champs: DEFAULT_CONFIG.champs,
   nomsOnglets: DEFAULT_CONFIG.nomsOnglets,
 }
@@ -91,39 +94,97 @@ export function determinerNiveau(age, reglesAge) {
   return null
 }
 
-export function optimiserAllocation(demandesParNiveau, salles, mode = 'B') {
+export function optimiserAllocation(demandesParNiveau, salles) {
+  // Algorithme multi-classes : toutes les salles utilisées, min 1 salle par niveau
+  // Maximise le nombre d'élèves acceptés avec 100% de remplissage si possible
   const niveaux = Object.keys(demandesParNiveau).filter(n => demandesParNiveau[n].length > 0)
   if (!niveaux.length || !salles.length) return { affectations: {}, score: 0 }
-  let best = -1, bestAff = {}
 
-  function sc(aff) {
-    let acc = 0, cap = 0
-    for (const [nId, sId] of Object.entries(aff)) {
-      const s = salles.find(s => s.id === sId)
-      acc += Math.min(demandesParNiveau[nId]?.length || 0, s.capacite)
-      cap += s.capacite
+  const sallesSorted = [...salles].sort((a, b) => b.capacite - a.capacite)
+  const niveauxTriesDesc = [...niveaux].sort((a, b) => demandesParNiveau[b].length - demandesParNiveau[a].length)
+
+  // Phase 1 : garantir 1 salle par niveau (priorité aux niveaux les plus peuplés)
+  const sallesRestantes = [...sallesSorted]
+  const assignationInitiale = {}
+  niveaux.forEach(n => assignationInitiale[n] = [])
+  for (const n of niveauxTriesDesc) {
+    if (sallesRestantes.length > 0) assignationInitiale[n].push(sallesRestantes.shift())
+  }
+
+  // Phase 2 : backtracking sur les salles restantes
+  function scoreDistrib(distrib) {
+    return niveaux.reduce((s, n) => {
+      const cap = distrib[n].reduce((c, sl) => c + sl.capacite, 0)
+      return s + Math.min(demandesParNiveau[n].length, cap)
+    }, 0)
+  }
+
+  let meilleurScore = -1
+  let meilleureDistrib = null
+
+  function backtrack(idx, distrib) {
+    if (idx === sallesRestantes.length) {
+      const s = scoreDistrib(distrib)
+      if (s > meilleurScore) {
+        meilleurScore = s
+        meilleureDistrib = {}
+        niveaux.forEach(n => meilleureDistrib[n] = [...distrib[n]])
+      }
+      return
     }
-    return mode === 'A' ? (cap > 0 ? acc / cap : 0) : acc
+    const salle = sallesRestantes[idx]
+    for (const n of niveaux) {
+      distrib[n].push(salle)
+      backtrack(idx + 1, distrib)
+      distrib[n].pop()
+    }
   }
 
-  function bt(i, rest, cur) {
-    if (i === niveaux.length) { const s = sc(cur); if (s > best) { best = s; bestAff = { ...cur } }; return }
-    bt(i + 1, rest, cur)
-    for (const sl of rest) { cur[niveaux[i]] = sl.id; bt(i + 1, rest.filter(s => s.id !== sl.id), cur); delete cur[niveaux[i]] }
-  }
-  bt(0, [...salles], {})
+  const distribBT = {}
+  niveaux.forEach(n => distribBT[n] = [...assignationInitiale[n]])
+  backtrack(0, distribBT)
 
-  const res = {}
-  for (const nId of niveaux) {
-    const s = bestAff[nId] ? salles.find(s => s.id === bestAff[nId]) : null
-    const nb = demandesParNiveau[nId].length
-    const acc = s ? Math.min(nb, s.capacite) : 0
-    res[nId] = { salle: s, nbDemandes: nb, acceptes: acc, refusesSalle: s ? Math.max(0, nb - s.capacite) : 0, placesLibres: s ? Math.max(0, s.capacite - nb) : 0, tauxRemplissage: s ? (acc / s.capacite * 100).toFixed(1) : 0 }
+  // Construire le résultat avec classes
+  const affectations = {}
+  for (const niveauId of niveaux) {
+    const elevesNiveau = demandesParNiveau[niveauId]
+    const sallesNiveau = (meilleureDistrib[niveauId] || []).sort((a, b) => b.capacite - a.capacite)
+    const classes = []
+    let elevesRestants = [...elevesNiveau]
+
+    for (let i = 0; i < sallesNiveau.length; i++) {
+      const salle = sallesNiveau[i]
+      const elevesClasse = elevesRestants.splice(0, salle.capacite)
+      classes.push({
+        classeNum: i + 1,
+        classeId: `${niveauId}_c${i+1}`,
+        salle,
+        nbAcceptes: elevesClasse.length,
+        placesLibres: salle.capacite - elevesClasse.length,
+        tauxRemplissage: ((elevesClasse.length / salle.capacite) * 100).toFixed(1),
+        elevesIds: elevesClasse.map(e => e.id),
+      })
+    }
+
+    affectations[niveauId] = {
+      classes,
+      nbDemandes: elevesNiveau.length,
+      nbAcceptes: elevesNiveau.length - elevesRestants.length,
+      nbAttente: elevesRestants.length,
+      placesTotales: sallesNiveau.reduce((s, sl) => s + sl.capacite, 0),
+      elevesAttenteIds: elevesRestants.map(e => e.id),
+      // Compat ancienne interface
+      salle: sallesNiveau[0] || null,
+      acceptes: elevesNiveau.length - elevesRestants.length,
+      refusesSalle: 0,
+      placesLibres: sallesNiveau.reduce((s, sl) => s + sl.capacite, 0) - (elevesNiveau.length - elevesRestants.length),
+      tauxRemplissage: sallesNiveau.length > 0
+        ? ((elevesNiveau.length - elevesRestants.length) / sallesNiveau.reduce((s, sl) => s + sl.capacite, 0) * 100).toFixed(1)
+        : 0,
+    }
   }
-  for (const nId of Object.keys(demandesParNiveau)) {
-    if (!res[nId]) res[nId] = { salle: null, nbDemandes: demandesParNiveau[nId].length, acceptes: 0, refusesSalle: 0, placesLibres: 0, tauxRemplissage: 0 }
-  }
-  return { affectations: res, score: best }
+
+  return { affectations, score: meilleurScore }
 }
 
 const AppContext = createContext(null)
@@ -175,6 +236,7 @@ export function AppProvider({ children }) {
       mode_allocation_defaut: cfg.modeAllocationDefaut || 'B',
       champs: cfg.champs,
       noms_onglets: cfg.nomsOnglets || DEFAULT_CONFIG.nomsOnglets,
+      langue: cfg.langue || 'fr',
       updated_at: new Date().toISOString()
     }, { onConflict: 'annee_id' })
   }, [annee, config])
@@ -208,27 +270,47 @@ export function AppProvider({ children }) {
   }, [])
 
   const lancerOptimisation = useCallback(async (mode) => {
-    const m = mode || modeAllocation
     const dpn = {}
     for (const r of config.reglesAge) {
       dpn[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription))
     }
-    const { affectations } = optimiserAllocation(dpn, config.salles, m)
+    const { affectations } = optimiserAllocation(dpn, config.salles)
+
+    // Calculer les statuts à partir des classes
     const statuts = {}
     for (const [nId, res] of Object.entries(affectations)) {
-      let cnt = 0
-      for (const e of (dpn[nId] || [])) {
-        if (e.force) { statuts[e.id] = 'accepte'; cnt++ }
-        else if (res.salle && cnt < res.salle.capacite) { statuts[e.id] = 'accepte'; cnt++ }
+      const elevesNiveau = dpn[nId] || []
+      // D'abord les forcés
+      const forces = elevesNiveau.filter(e => e.force)
+      const normaux = elevesNiveau.filter(e => !e.force)
+
+      // Capacité totale du niveau
+      const capaciteTotale = res.classes.reduce((s, c) => s + c.salle.capacite, 0)
+      let placesRestantes = capaciteTotale
+
+      // Forcer en priorité
+      for (const e of forces) {
+        statuts[e.id] = 'accepte'
+        placesRestantes--
+      }
+      // Puis premiers arrivés
+      for (const e of normaux) {
+        if (placesRestantes > 0) { statuts[e.id] = 'accepte'; placesRestantes-- }
         else statuts[e.id] = 'liste_attente'
       }
-      affectations[nId].acceptes = cnt
-      affectations[nId].placesLibres = res.salle ? Math.max(0, res.salle.capacite - cnt) : 0
+
+      // Recalculer nbAcceptes
+      const nbAcc = elevesNiveau.filter(e => statuts[e.id] === 'accepte').length
+      affectations[nId].nbAcceptes = nbAcc
+      affectations[nId].acceptes = nbAcc
+      affectations[nId].nbAttente = elevesNiveau.length - nbAcc
+      affectations[nId].placesLibres = Math.max(0, capaciteTotale - nbAcc)
     }
+
     for (const [id, statut] of Object.entries(statuts)) await supabase.from('eleves').update({ statut }).eq('id', id)
-    await supabase.from('allocations').upsert({ annee_id: annee.id, affectations, mode: m, calculated_at: new Date().toISOString() }, { onConflict: 'annee_id' })
+    await supabase.from('allocations').upsert({ annee_id: annee.id, affectations, mode: 'multi', calculated_at: new Date().toISOString() }, { onConflict: 'annee_id' })
     setEleves(prev => prev.map(e => ({ ...e, statut: statuts[e.id] || e.statut })))
-    setAllocation({ affectations, mode: m, date: new Date().toISOString() })
+    setAllocation({ affectations, mode: 'multi', date: new Date().toISOString() })
   }, [annee, config, eleves, modeAllocation])
 
   const chargerDonneesTest = useCallback(async () => {
@@ -246,8 +328,65 @@ export function AppProvider({ children }) {
 
   const reinitialiser = useCallback(() => { setAnnee(null); setEleves([]); setAllocation(null); setConfigState(DEFAULT_CONFIG) }, [])
 
+  // ── Compteur de modifications pour sauvegarde auto ──
+  const [compteurModifs, setCompteurModifs] = useState(0)
+  const N_MODIFS_AVANT_SAUVEGARDE = 10
+
+  // ── Créer une sauvegarde ──
+  const creerSauvegarde = useCallback(async (declencheur = 'auto') => {
+    if (!annee || eleves.length === 0) return
+    // Garder seulement les 20 dernières — supprimer les plus anciennes
+    const { data: existantes } = await supabase
+      .from('sauvegardes_eleves')
+      .select('id, created_at')
+      .eq('annee_id', annee.id)
+      .order('created_at', { ascending: false })
+    if (existantes && existantes.length >= 20) {
+      const aSupprimer = existantes.slice(19).map(s => s.id)
+      await supabase.from('sauvegardes_eleves').delete().in('id', aSupprimer)
+    }
+    // Créer la sauvegarde
+    const donnees = eleves.map(e => ({
+      donnees: Object.fromEntries(
+        Object.entries(e).filter(([k]) => !['id','age','niveauId','statut','force','dateInscription'].includes(k))
+      ),
+      age: e.age,
+      niveauId: e.niveauId,
+    }))
+    await supabase.from('sauvegardes_eleves').insert({
+      annee_id: annee.id,
+      etablissement_id: annee.etablissement_id,
+      donnees,
+      nb_eleves: eleves.length,
+      declencheur,
+    })
+  }, [annee, eleves])
+
+  // ── Incrémenter le compteur et sauvegarder si nécessaire ──
+  const incrementerModifs = useCallback(async () => {
+    const nouveau = compteurModifs + 1
+    setCompteurModifs(nouveau)
+    if (nouveau >= N_MODIFS_AVANT_SAUVEGARDE) {
+      await creerSauvegarde('auto')
+      setCompteurModifs(0)
+    }
+  }, [compteurModifs, creerSauvegarde])
+
+  // ── Effacer toutes les inscriptions ──
+  const effacerToutesInscriptions = useCallback(async () => {
+    if (!annee) return
+    // Sauvegarde automatique avant effacement
+    await creerSauvegarde('avant_effacement')
+    // Effacer
+    await supabase.from('eleves').delete().eq('annee_id', annee.id)
+    await supabase.from('allocations').delete().eq('annee_id', annee.id)
+    setEleves([])
+    setAllocation(null)
+    setCompteurModifs(0)
+  }, [annee, creerSauvegarde])
+
   return (
-    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser }}>
+    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
       {children}
     </AppContext.Provider>
   )
