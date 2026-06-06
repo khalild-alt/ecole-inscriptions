@@ -386,27 +386,86 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
           {eleves.length === 0 ? ti.aucune_inscr : ti.aucun_filtre}
         </div>
       ) : (
-        <div className="table-wrap">
-          <table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th>{ti.col_num}</th>
-                {config.champs.filter(c => c.type !== 'computed').map(c => <th key={c.id} style={{ direction: 'auto' }}>{c.label}</th>)}
-                <th>{ti.col_age}</th>
-                <th>{ti.col_niveau}</th>
-                {allocation && <th>{ti.col_statut}</th>}
-                <th style={{ width: 100 }}></th>
+                {[
+                  { label: ti.col_num, key: 'num', defW: 40 },
+                  ...config.champs.filter(c => c.type !== 'computed').map(c => ({ label: c.label, key: c.id, defW: 120, arabic: true })),
+                  { label: ti.col_age, key: 'age', defW: 70 },
+                  { label: ti.col_niveau, key: 'niveau', defW: 100 },
+                  ...(allocation ? [
+                    { label: 'Salle', key: 'salle', defW: 110 },
+                    { label: ti.col_statut, key: 'statut', defW: 100 },
+                  ] : []),
+                  { label: '', key: 'actions', defW: 80 },
+                ].map((col, idx) => (
+                  <th key={col.key} style={{
+                    position: 'relative',
+                    width: colWidths[idx] || col.defW,
+                    minWidth: colWidths[idx] || col.defW,
+                    userSelect: 'none',
+                    direction: col.arabic ? 'auto' : 'ltr',
+                    padding: '10px 8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: col.label ? 'uppercase' : 'none',
+                    color: 'var(--ink-muted)',
+                    background: 'var(--paper)',
+                    borderBottom: '2px solid var(--paper3)',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {col.label}
+                    {col.key !== 'actions' && (
+                      <div
+                        onMouseDown={e => startResize(idx, e)}
+                        style={{
+                          position: 'absolute', right: 0, top: 0, bottom: 0,
+                          width: 6, cursor: 'col-resize',
+                          background: 'transparent',
+                          borderRight: '2px solid var(--paper3)',
+                          zIndex: 1,
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderRightColor = 'var(--accent)'}
+                        onMouseLeave={e => e.currentTarget.style.borderRightColor = 'var(--paper3)'}
+                      />
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {elevesFiltrés.map((e, idx) => (
                 <tr key={e.id}>
-                  <td style={{ color: 'var(--ink-muted)', fontSize: '0.82rem' }}>{idx + 1}</td>
-                  {config.champs.filter(c => c.type !== 'computed').map(c => <td key={c.id} style={{ direction: 'auto' }}>{e[c.id] || '—'}</td>)}
-                  <td><strong>{e.age}</strong> {ti.ans}</td>
-                  <td><span className={`niveau-tag ${getNiveauClass(e.niveauId)}`} style={{ direction: 'auto' }}>{getNiveauLabel(e.niveauId, config.reglesAge)}</span></td>
-                  {allocation && <td>{statutBadge(e.statut)}</td>}
-                  <td>
+                  <td style={{ color: 'var(--ink-muted)', fontSize: '0.82rem', padding: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                  {config.champs.filter(c => c.type !== 'computed').map(c => (
+                    <td key={c.id} style={{ direction: 'auto', padding: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(e[c.id] || '')}>
+                      {e[c.id] || '—'}
+                    </td>
+                  ))}
+                  <td style={{ padding: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}><strong>{e.age}</strong> {ti.ans}</td>
+                  <td style={{ padding: '8px', overflow: 'hidden' }}>
+                    <span className={`niveau-tag ${getNiveauClass(e.niveauId)}`} style={{ direction: 'auto', fontSize: '0.75rem' }}>
+                      {getNiveauLabel(e.niveauId, config.reglesAge)}
+                    </span>
+                  </td>
+                  {allocation && (
+                    <td style={{ padding: '8px', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                      {(() => {
+                        if (e.statut !== 'accepte') return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+                        const res = allocation.affectations[e.niveauId]
+                        if (!res?.classes) return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+                        const cls = res.classes.find(c => c.elevesIds && c.elevesIds.includes(e.id))
+                        if (!cls) return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+                        return <span style={{ fontWeight: 600, color: 'var(--success)' }}>{cls.salle?.nomComplet || cls.salle?.nom || '—'}</span>
+                      })()}
+                    </td>
+                  )}
+                  {allocation && <td style={{ padding: '8px' }}>{statutBadge(e.statut)}</td>}
+                  <td style={{ padding: '8px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {!lectureSeule && <button className="btn btn-info btn-sm" onClick={() => onEditer(e)}><IconEdit /></button>}
                       {!lectureSeule && <button className="btn btn-danger btn-sm" onClick={() => confirmerSupprimer(e)}><IconTrash /></button>}
