@@ -381,15 +381,17 @@ export function AppProvider({ children }) {
   }, [compteurModifs, creerSauvegarde])
 
   // ── Effacer toutes les inscriptions ──
-  const effacerToutesInscriptions = useCallback(async () => {
+  const effacerToutesInscriptions = async () => {
     if (!annee) return
     try { await creerSauvegarde('avant_effacement') } catch(e) { console.warn('Sauvegarde echouee', e) }
     await supabase.from('eleves').delete().eq('annee_id', annee.id)
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
-    setEleves([])
+    // Recharger depuis la base pour forcer le re-render
+    const { data } = await supabase.from('eleves').select('*').eq('annee_id', annee.id)
+    setEleves(data || [])
     setAllocation(null)
     setCompteurModifs(0)
-  }, [annee, eleves, creerSauvegarde])
+  }
 
   return (
     <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
@@ -399,4 +401,3 @@ export function AppProvider({ children }) {
 }
 
 export function useApp() { return useContext(AppContext) }
-// Sat  6 Jun 2026 20:37:36 CEST
