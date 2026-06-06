@@ -26,7 +26,7 @@ function getNiveauClass(niveauId) {
 }
 
 function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
-  const { config, ajouterEleve, setEleves } = useApp()
+  const { config, ajouterEleve, setEleves, incrementerModifs, eleves } = useApp()
   const { t } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
@@ -62,6 +62,24 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
       if (c.obligatoire && !form[c.id]?.trim?.() && !form[c.id]) {
         errs[c.id] = `${c.label} ${t.commun.obligatoire}`
       }
+      // Vérifier que l'identifiant est un entier valide si renseigné
+      if (c.id === 'identifiant' && form[c.id]) {
+        const val = String(form[c.id]).trim()
+        if (!/^\d+$/.test(val)) {
+          errs[c.id] = langue === 'ar' ? 'يجب أن يكون المعرف رقماً صحيحاً' : "L'identifiant doit être un nombre entier"
+        } else {
+          // Vérifier l'unicité (sauf si on modifie le même élève)
+          const doublon = eleves.find(e =>
+            e.identifiant && String(e.identifiant) === val &&
+            (!modeEdition || e.id !== eleveAEditer?.id)
+          )
+          if (doublon) {
+            errs[c.id] = langue === 'ar'
+              ? `المعرف ${val} مستخدم بالفعل (${doublon.prenom} ${doublon.nom})`
+              : `Identifiant ${val} déjà utilisé par ${doublon.prenom} ${doublon.nom}`
+          }
+        }
+      }
     }
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -91,6 +109,7 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
       await ajouterEleve(form)
       toast(`${form.prenom || ''} ${form.nom || ''} ajouté(e)`, 'success')
       setForm({}); setPreview(null); setErrors({})
+      incrementerModifs()
     }
     setSaving(false)
   }
@@ -334,8 +353,24 @@ export default function PageInscriptions({ lectureSeule }) {
 
   return (
     <div className="page">
-      <h2 className="page-title">{t.inscriptions.titre}</h2>
-      <p className="page-subtitle">{t.inscriptions.sous_titre}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+        <div>
+          <h2 className="page-title">{t.inscriptions.titre}</h2>
+          <p className="page-subtitle">{t.inscriptions.sous_titre}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary btn-sm" onClick={async () => { await creerSauvegarde('manuel'); toast2(langue === 'ar' ? 'تم الحفظ' : 'Sauvegarde créée', 'success') }}>
+            💾 {langue === 'ar' ? 'حفظ الآن' : 'Sauvegarder'}
+          </button>
+          <button className="btn btn-danger btn-sm" onClick={async () => {
+            if (!window.confirm(langue === 'ar' ? 'حذف جميع التسجيلات ؟\n\nسيتم إنشاء نسخة احتياطية تلقائياً.' : 'Effacer toutes les inscriptions ?\n\nUne sauvegarde sera créée automatiquement.')) return
+            await effacerToutesInscriptions()
+            toast2(langue === 'ar' ? 'تم الحذف' : 'Inscriptions effacées', 'info')
+          }}>
+            🗑 {langue === 'ar' ? 'حذف الكل' : 'Effacer tout'}
+          </button>
+        </div>
+      </div>
       {!lectureSeule && <FormulaireIndividuel eleveAEditer={eleveAEditer} onAnnulerEdition={() => setEleveAEditer(null)} />}
       {!lectureSeule && !eleveAEditer && <ImportExcel />}
       <ListeInscriptions onEditer={e => { setEleveAEditer(e); window.scrollTo({ top: 0, behavior: 'smooth' }) }} lectureSeule={lectureSeule} />

@@ -24,6 +24,7 @@ export const DEFAULT_CONFIG = {
     { id: 'prenom',        label: 'Prénom',           type: 'text',     obligatoire: true,  systeme: true, readonly: false },
     { id: 'nom',           label: 'Nom',               type: 'text',     obligatoire: true,  systeme: true, readonly: false },
     { id: 'dateNaissance', label: 'Date de naissance', type: 'date',     obligatoire: true,  systeme: true, readonly: false },
+    { id: 'identifiant',   label: 'Identifiant',        type: 'number',   obligatoire: false, systeme: true, readonly: false },
     { id: 'age',           label: 'Âge calculé',       type: 'computed', obligatoire: false, systeme: true, readonly: true  },
   ],
   // Noms des onglets — modifiables par l'admin
