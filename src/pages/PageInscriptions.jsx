@@ -95,17 +95,22 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
 
     // Vérification unicité identifiant en base (source de vérité)
     if (form.identifiant !== undefined && form.identifiant !== '') {
-      const { data: existants } = await supabase
+      const valId = String(form.identifiant).trim()
+      // Récupérer tous les élèves de l'année et filtrer côté client
+      const { data: tousEleves } = await supabase
         .from('eleves')
         .select('id, donnees')
         .eq('annee_id', annee.id)
-        .contains('donnees', { identifiant: String(form.identifiant) })
-      const doublon = (existants || []).find(e => !modeEdition || e.id !== eleveAEditer?.id)
+      const doublon = (tousEleves || []).find(e => {
+        if (modeEdition && e.id === eleveAEditer?.id) return false
+        const eId = e.donnees?.identifiant
+        return eId !== undefined && eId !== null && eId !== '' && String(eId).trim() === valId
+      })
       if (doublon) {
         const d = doublon.donnees
         setErrors(prev => ({ ...prev, identifiant: langue === 'ar'
-          ? `المعرف ${form.identifiant} مستخدم بالفعل`
-          : `Identifiant ${form.identifiant} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}` }))
+          ? `المعرف ${valId} مستخدم بالفعل`
+          : `Identifiant ${valId} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}` }))
         return
       }
     }
