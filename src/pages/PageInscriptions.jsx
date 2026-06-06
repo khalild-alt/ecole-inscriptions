@@ -307,25 +307,6 @@ function ImportExcel() {
   )
 }
 
-function useColResize(nbCols) {
-  const [widths, setWidths] = React.useState(() => Array(nbCols).fill(null))
-  const resizing = React.useRef(null)
-
-  function onMouseDown(idx, e) {
-    e.preventDefault()
-    resizing.current = { idx, startX: e.clientX, startW: widths[idx] || 120 }
-    function onMove(ev) {
-      const delta = ev.clientX - resizing.current.startX
-      const newW = Math.max(40, resizing.current.startW + delta)
-      setWidths(prev => { const n = [...prev]; n[resizing.current.idx] = newW; return n })
-    }
-    function onUp() { resizing.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-  return { widths, onMouseDown }
-}
-
 function ListeInscriptions({ onEditer, lectureSeule }) {
   const { config, eleves, supprimerEleve, allocation } = useApp()
   const { t, langue } = useI18n()
@@ -333,6 +314,31 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   const ti = t.inscriptions
   const [filtre, setFiltre] = useState('')
   const [filtreNiveau, setFiltreNiveau] = useState('')
+  const champsFiltres = config.champs.filter(c => c.type !== 'computed')
+  const nbCols = 1 + champsFiltres.length + 2 + (allocation ? 2 : 0) + 1
+  const [colWidths, setColWidths] = useState(() => Array(20).fill(null))
+  const resizingRef = React.useRef(null)
+
+  function startResize(idx, e) {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startW = colWidths[idx] || e.target.closest('th').offsetWidth
+    resizingRef.current = idx
+
+    function onMove(ev) {
+      const delta = ev.clientX - startX
+      const newW = Math.max(30, startW + delta)
+      setColWidths(prev => { const n = [...prev]; n[idx] = newW; return n })
+    }
+    function onUp() {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   const elevesFiltrés = eleves.filter(e => {
     const search = filtre.toLowerCase()
