@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import { useApp, calculerAge, determinerNiveau } from '../store/appStore'
 import { useToast } from '../components/Toast'
+import { useI18n, interpoler } from '../i18n/useI18n'
 import { supabase } from '../lib/supabase'
 
 function IconUpload() {
@@ -24,12 +25,12 @@ function getNiveauClass(niveauId) {
   return map[niveauId] || 'niveau-inconnu'
 }
 
-// ── Formulaire individuel (saisie + édition) ───────────────────────────────
 function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   const { config, ajouterEleve, setEleves } = useApp()
+  const { t } = useI18n()
   const toast = useToast()
+  const ti = t.inscriptions
 
-  // Si un élève est passé, on préremplit le formulaire
   const [form, setForm] = useState(eleveAEditer
     ? Object.fromEntries(config.champs.filter(c => c.type !== 'computed').map(c => [c.id, eleveAEditer[c.id] || '']))
     : {}
@@ -42,7 +43,6 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
     return age !== null ? { age, niveauId, niveauLabel: getNiveauLabel(niveauId, config.reglesAge) } : null
   })
   const [saving, setSaving] = useState(false)
-
   const modeEdition = !!eleveAEditer
 
   function handleChange(id, val) {
@@ -60,7 +60,7 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
     for (const c of config.champs) {
       if (c.type === 'computed') continue
       if (c.obligatoire && !form[c.id]?.trim?.() && !form[c.id]) {
-        errs[c.id] = `Le champ "${c.label}" est obligatoire`
+        errs[c.id] = `${c.label} ${t.commun.obligatoire}`
       }
     }
     setErrors(errs)
@@ -68,128 +68,83 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   }
 
   async function handleSubmit() {
-    if (!valider()) { toast('Veuillez remplir les champs obligatoires', 'error'); return }
+    if (!valider()) { toast(ti.hors_tranche, 'error'); return }
     const age = calculerAge(form.dateNaissance, config.modeCalculAge)
-    if (age === null) { toast('Date de naissance invalide', 'error'); return }
-    if (!determinerNiveau(age, config.reglesAge)) {
-      toast(`Âge ${age} ans : aucun niveau correspondant`, 'error'); return
-    }
+    if (age === null) { toast('Date invalide', 'error'); return }
+    if (!determinerNiveau(age, config.reglesAge)) { toast(ti.hors_tranche, 'error'); return }
 
     if (modeEdition) {
-      // ── Modifier un élève existant ──
       setSaving(true)
       const niveauId = determinerNiveau(age, config.reglesAge)
       const ancienNiveau = eleveAEditer.niveauId
-
-      // Confirmer si le niveau change
       if (niveauId !== ancienNiveau) {
-        const ancienLabel = getNiveauLabel(ancienNiveau, config.reglesAge)
-        const nouveauLabel = getNiveauLabel(niveauId, config.reglesAge)
-        if (!window.confirm(`⚠️ Attention : la modification de la date de naissance change le niveau de cet élève.\n\nAncien niveau : ${ancienLabel}\nNouveau niveau : ${nouveauLabel}\n\nConfirmez-vous ?`)) {
+        if (!window.confirm(interpoler(ti.confirm_niveau, { ancien: getNiveauLabel(ancienNiveau, config.reglesAge), nouveau: getNiveauLabel(niveauId, config.reglesAge) }))) {
           setSaving(false); return
         }
       }
-
-      const { error } = await supabase.from('eleves').update({
-        donnees: form,
-        age,
-        niveau_id: niveauId,
-        statut: 'attente', // recalcul nécessaire
-        force: false,
-      }).eq('id', eleveAEditer.id)
-
-      if (error) { toast('Erreur lors de la modification : ' + error.message, 'error'); setSaving(false); return }
-
-      setEleves(prev => prev.map(e => e.id === eleveAEditer.id
-        ? { ...e, ...form, age, niveauId, statut: 'attente', force: false }
-        : e
-      ))
+      const { error } = await supabase.from('eleves').update({ donnees: form, age, niveau_id: niveauId, statut: 'attente', force: false }).eq('id', eleveAEditer.id)
+      if (error) { toast('Erreur : ' + error.message, 'error'); setSaving(false); return }
+      setEleves(prev => prev.map(e => e.id === eleveAEditer.id ? { ...e, ...form, age, niveauId, statut: 'attente', force: false } : e))
       toast(`${form.prenom || ''} ${form.nom || ''} modifié(e)`, 'success')
       onAnnulerEdition()
     } else {
-      // ── Ajouter un nouvel élève ──
       await ajouterEleve(form)
       toast(`${form.prenom || ''} ${form.nom || ''} ajouté(e)`, 'success')
-      setForm({})
-      setPreview(null)
-      setErrors({})
+      setForm({}); setPreview(null); setErrors({})
     }
     setSaving(false)
   }
 
-  const champsVisibles = config.champs.filter(c => c.type !== 'computed')
+  const modeLabel = config.modeCalculAge === 'annee' ? t.config_salles.mode_annee : config.modeCalculAge === 'annee_mois' ? t.config_salles.mode_mois : t.config_salles.mode_jour
 
   return (
     <div className="card" style={modeEdition ? { border: '2px solid var(--accent)', boxShadow: '0 0 0 4px rgba(200,64,26,0.08)' } : {}}>
       <div className="card-title">
-        {modeEdition
-          ? <><span>✏️</span> Modifier : {eleveAEditer.prenom} {eleveAEditer.nom}</>
-          : <><span>✏️</span> Saisie individuelle</>
-        }
+        {modeEdition ? <><span>✏️</span> {ti.section_modifier} : {eleveAEditer.prenom} {eleveAEditer.nom}</> : <><span>✏️</span> {ti.section_saisie}</>}
       </div>
-
-      {modeEdition && (
-        <div className="alert alert-warning" style={{ marginBottom: 16 }}>
-          Vous modifiez une fiche existante. Si une allocation a déjà été calculée, elle devra être relancée.
-        </div>
-      )}
-
+      {modeEdition && <div className="alert alert-warning">{ti.alert_modifier}</div>}
       <div className="grid-2">
-        {champsVisibles.map(c => (
+        {config.champs.filter(c => c.type !== 'computed').map(c => (
           <div className="form-group" key={c.id}>
-            <label className="form-label">
-              {c.label}
-              {c.obligatoire && <span className="required">*</span>}
+            <label className="form-label" style={{ direction: 'auto' }}>
+              {c.label}{c.obligatoire && <span className="required">*</span>}
             </label>
-            <input
-              className={`form-input${errors[c.id] ? ' error' : ''}`}
-              type={c.type === 'date' ? 'date' : 'text'}
-              value={form[c.id] || ''}
-              onChange={e => handleChange(c.id, e.target.value)}
-              placeholder={c.type === 'date' ? '' : `${c.label}...`}
-              style={{ direction: 'auto' }}
-            />
+            <input className={`form-input${errors[c.id] ? ' error' : ''}`} type={c.type === 'date' ? 'date' : 'text'}
+              value={form[c.id] || ''} onChange={e => handleChange(c.id, e.target.value)}
+              placeholder={c.type === 'date' ? '' : `${c.label}...`} style={{ direction: 'auto' }} />
             {errors[c.id] && <div className="form-error">{errors[c.id]}</div>}
           </div>
         ))}
       </div>
-
       {preview && (
         <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--paper)', borderRadius: 'var(--radius)', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.88rem', color: 'var(--ink-muted)' }}>
-            Âge calculé : <strong>{preview.age} ans</strong>
-          </span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
-            ({config.modeCalculAge === 'annee' ? 'année seulement' : config.modeCalculAge === 'annee_mois' ? 'année + mois' : 'année + mois + jour'})
-          </span>
-          <span style={{ fontSize: '0.88rem', color: 'var(--ink-muted)' }}>Niveau :</span>
-          <span className={`niveau-tag ${getNiveauClass(preview.niveauId)}`}>
-            {preview.niveauLabel || '⚠ Hors tranche'}
+          <span style={{ fontSize: '0.88rem', color: 'var(--ink-muted)' }}>{ti.age_calcule} : <strong>{preview.age} {t.inscriptions.ans}</strong></span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>({modeLabel})</span>
+          <span style={{ fontSize: '0.88rem', color: 'var(--ink-muted)' }}>{ti.niveau_attribue}</span>
+          <span className={`niveau-tag ${getNiveauClass(preview.niveauId)}`} style={{ direction: 'auto' }}>
+            {preview.niveauLabel || ti.hors_tranche}
           </span>
         </div>
       )}
-
       <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
         <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
-          {saving ? 'Enregistrement…' : modeEdition ? '💾 Enregistrer les modifications' : 'Ajouter l\'élève'}
+          {saving ? ti.enregistrement : modeEdition ? ti.enregistrer : ti.ajouter}
         </button>
-        <button className="btn btn-ghost" onClick={() => {
-          if (modeEdition) { onAnnulerEdition() }
-          else { setForm({}); setPreview(null); setErrors({}) }
-        }}>
-          {modeEdition ? 'Annuler' : 'Effacer'}
+        <button className="btn btn-ghost" onClick={() => { if (modeEdition) onAnnulerEdition(); else { setForm({}); setPreview(null); setErrors({}) } }}>
+          {modeEdition ? ti.annuler : ti.effacer}
         </button>
       </div>
     </div>
   )
 }
 
-// ── Import Excel ───────────────────────────────────────────────────────────
 function ImportExcel() {
   const { config, ajouterEleve } = useApp()
+  const { t } = useI18n()
   const toast = useToast()
   const fileRef = useRef()
   const [preview, setPreview] = useState(null)
+  const ti = t.inscriptions
 
   function handleFile(e) {
     const file = e.target.files?.[0]
@@ -217,8 +172,8 @@ function ImportExcel() {
           return { ...obj, age, niveauId, _ligne: idx + 2 }
         }).filter(r => r.prenom || r.nom)
         setPreview(mapped)
-        toast(`${mapped.length} ligne(s) lue(s) — vérifiez avant d'importer`, 'info')
-      } catch(err) { toast('Erreur de lecture : ' + err.message, 'error') }
+        toast(`${mapped.length} ligne(s) lue(s)`, 'info')
+      } catch(err) { toast('Erreur : ' + err.message, 'error') }
     }
     reader.readAsBinaryString(file)
     e.target.value = ''
@@ -227,10 +182,8 @@ function ImportExcel() {
   function confirmerImport() {
     if (!preview) return
     let ok = 0, ko = 0
-    for (const row of preview) {
-      if (row.niveauId) { ajouterEleve(row); ok++ } else ko++
-    }
-    toast(`${ok} élève(s) importé(s)${ko > 0 ? `, ${ko} ignoré(s)` : ''}`, ok > 0 ? 'success' : 'error')
+    for (const row of preview) { if (row.niveauId) { ajouterEleve(row); ok++ } else ko++ }
+    toast(`${ok} importé(s)${ko > 0 ? `, ${ko} ignoré(s)` : ''}`, ok > 0 ? 'success' : 'error')
     setPreview(null)
   }
 
@@ -244,11 +197,11 @@ function ImportExcel() {
 
   return (
     <div className="card">
-      <div className="card-title"><span>📥</span> Import par lot (fichier Excel)</div>
-      <div className="alert alert-info">Le fichier doit avoir des colonnes correspondant aux noms des champs configurés.</div>
+      <div className="card-title"><span>📥</span> {ti.section_import}</div>
+      <div className="alert alert-info">{ti.info_import}</div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button className="btn btn-secondary" onClick={telechargerModele}>📄 Télécharger le modèle Excel</button>
-        <button className="btn btn-info" onClick={() => fileRef.current?.click()}><IconUpload /> Choisir un fichier Excel</button>
+        <button className="btn btn-secondary" onClick={telechargerModele}>{ti.modele}</button>
+        <button className="btn btn-info" onClick={() => fileRef.current?.click()}><IconUpload /> {ti.choisir_fichier}</button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFile} />
       </div>
       {preview && (
@@ -257,18 +210,18 @@ function ImportExcel() {
             <table>
               <thead>
                 <tr>
-                  <th>Ligne</th>
-                  {config.champs.filter(c => c.type !== 'computed').map(c => <th key={c.id}>{c.label}</th>)}
-                  <th>Âge</th><th>Niveau</th><th>Statut</th>
+                  <th>{ti.col_num}</th>
+                  {config.champs.filter(c => c.type !== 'computed').map(c => <th key={c.id} style={{ direction: 'auto' }}>{c.label}</th>)}
+                  <th>{ti.col_age}</th><th>{ti.col_niveau}</th><th>{ti.col_statut}</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.map(row => (
                   <tr key={row._ligne}>
                     <td style={{ color: 'var(--ink-muted)' }}>#{row._ligne}</td>
-                    {config.champs.filter(c => c.type !== 'computed').map(c => <td key={c.id}>{row[c.id] || '—'}</td>)}
+                    {config.champs.filter(c => c.type !== 'computed').map(c => <td key={c.id} style={{ direction: 'auto' }}>{row[c.id] || '—'}</td>)}
                     <td>{row.age ?? '—'}</td>
-                    <td><span className={`niveau-tag ${getNiveauClass(row.niveauId)}`}>{getNiveauLabel(row.niveauId, config.reglesAge) || '⚠ Hors tranche'}</span></td>
+                    <td><span className={`niveau-tag ${getNiveauClass(row.niveauId)}`} style={{ direction: 'auto' }}>{getNiveauLabel(row.niveauId, config.reglesAge) || ti.hors_tranche}</span></td>
                     <td>{row.niveauId ? <span className="badge badge-accepte">OK</span> : <span className="badge badge-liste">Ignoré</span>}</td>
                   </tr>
                 ))}
@@ -276,8 +229,8 @@ function ImportExcel() {
             </table>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button className="btn btn-success" onClick={confirmerImport}>✓ Confirmer l'import ({preview.filter(r => r.niveauId).length} élèves)</button>
-            <button className="btn btn-ghost" onClick={() => setPreview(null)}>Annuler</button>
+            <button className="btn btn-success" onClick={confirmerImport}>{interpoler(ti.confirmer_import, { n: preview.filter(r => r.niveauId).length })}</button>
+            <button className="btn btn-ghost" onClick={() => setPreview(null)}>{ti.annuler_import}</button>
           </div>
         </>
       )}
@@ -285,10 +238,11 @@ function ImportExcel() {
   )
 }
 
-// ── Liste des inscriptions ─────────────────────────────────────────────────
 function ListeInscriptions({ onEditer, lectureSeule }) {
   const { config, eleves, supprimerEleve, allocation } = useApp()
+  const { t } = useI18n()
   const toast = useToast()
+  const ti = t.inscriptions
   const [filtre, setFiltre] = useState('')
   const [filtreNiveau, setFiltreNiveau] = useState('')
 
@@ -300,60 +254,53 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   })
 
   function confirmerSupprimer(e) {
-    if (!window.confirm(`Supprimer ${e.prenom} ${e.nom} ?\n\nCette action est irréversible.`)) return
+    if (!window.confirm(interpoler(ti.confirm_suppr, { prenom: e.prenom, nom: e.nom }))) return
     supprimerEleve(e.id)
     toast(`${e.prenom} ${e.nom} supprimé(e)`, 'info')
   }
 
   function statutBadge(statut) {
-    if (statut === 'accepte') return <span className="badge badge-accepte">Accepté</span>
-    if (statut === 'liste_attente') return <span className="badge badge-liste">Liste d'attente</span>
-    return <span className="badge badge-attente">En attente</span>
+    if (statut === 'accepte') return <span className="badge badge-accepte">{t.statuts.accepte}</span>
+    if (statut === 'liste_attente') return <span className="badge badge-liste">{t.statuts.liste_attente}</span>
+    return <span className="badge badge-attente">{t.statuts.en_attente}</span>
   }
 
   const compteurs = {}
-  for (const r of config.reglesAge) {
-    compteurs[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).length
-  }
+  for (const r of config.reglesAge) compteurs[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).length
 
   return (
     <div className="card">
       <div className="card-title">
-        <span>👥</span> Liste des demandes ({eleves.length} élève{eleves.length > 1 ? 's' : ''})
+        <span>👥</span> {ti.section_liste} ({eleves.length} {ti.n_eleves})
       </div>
-
       <div className="chips" style={{ marginBottom: 16 }}>
         {config.reglesAge.map(r => (
-          <span key={r.niveauId} className={`chip niveau-tag ${getNiveauClass(r.niveauId)}`}>
+          <span key={r.niveauId} className={`chip niveau-tag ${getNiveauClass(r.niveauId)}`} style={{ direction: 'auto' }}>
             {r.label} : {compteurs[r.niveauId] || 0}
           </span>
         ))}
       </div>
-
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input className="form-input" placeholder="Rechercher par nom ou prénom..." value={filtre}
-          onChange={e => setFiltre(e.target.value)} style={{ maxWidth: 260 }} />
-        <select className="form-input" value={filtreNiveau}
-          onChange={e => setFiltreNiveau(e.target.value)} style={{ maxWidth: 180 }}>
-          <option value="">Tous les niveaux</option>
+        <input className="form-input" placeholder={ti.rechercher} value={filtre} onChange={e => setFiltre(e.target.value)} style={{ maxWidth: 260 }} />
+        <select className="form-input" value={filtreNiveau} onChange={e => setFiltreNiveau(e.target.value)} style={{ maxWidth: 180 }}>
+          <option value="">{ti.tous_niveaux}</option>
           {config.reglesAge.map(r => <option key={r.niveauId} value={r.niveauId}>{r.label}</option>)}
         </select>
       </div>
-
       {elevesFiltrés.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ink-muted)', fontSize: '1rem' }}>
-          {eleves.length === 0 ? 'Aucune inscription pour le moment.' : 'Aucun résultat pour ce filtre.'}
+          {eleves.length === 0 ? ti.aucune_inscr : ti.aucun_filtre}
         </div>
       ) : (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>#</th>
-                {config.champs.filter(c => c.type !== 'computed').map(c => <th key={c.id}>{c.label}</th>)}
-                <th>Âge</th>
-                <th>Niveau</th>
-                {allocation && <th>Statut</th>}
+                <th>{ti.col_num}</th>
+                {config.champs.filter(c => c.type !== 'computed').map(c => <th key={c.id} style={{ direction: 'auto' }}>{c.label}</th>)}
+                <th>{ti.col_age}</th>
+                <th>{ti.col_niveau}</th>
+                {allocation && <th>{ti.col_statut}</th>}
                 <th style={{ width: 100 }}></th>
               </tr>
             </thead>
@@ -361,28 +308,14 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
               {elevesFiltrés.map((e, idx) => (
                 <tr key={e.id}>
                   <td style={{ color: 'var(--ink-muted)', fontSize: '0.82rem' }}>{idx + 1}</td>
-                  {config.champs.filter(c => c.type !== 'computed').map(c => (
-                    <td key={c.id} style={{ direction: 'auto' }}>{e[c.id] || '—'}</td>
-                  ))}
-                  <td><strong>{e.age}</strong> ans</td>
-                  <td>
-                    <span className={`niveau-tag ${getNiveauClass(e.niveauId)}`} style={{ direction: 'auto' }}>
-                      {getNiveauLabel(e.niveauId, config.reglesAge)}
-                    </span>
-                  </td>
+                  {config.champs.filter(c => c.type !== 'computed').map(c => <td key={c.id} style={{ direction: 'auto' }}>{e[c.id] || '—'}</td>)}
+                  <td><strong>{e.age}</strong> {ti.ans}</td>
+                  <td><span className={`niveau-tag ${getNiveauClass(e.niveauId)}`} style={{ direction: 'auto' }}>{getNiveauLabel(e.niveauId, config.reglesAge)}</span></td>
                   {allocation && <td>{statutBadge(e.statut)}</td>}
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      {!lectureSeule && (
-                        <button className="btn btn-info btn-sm" onClick={() => onEditer(e)} title="Modifier cet élève">
-                          <IconEdit />
-                        </button>
-                      )}
-                      {!lectureSeule && (
-                        <button className="btn btn-danger btn-sm" onClick={() => confirmerSupprimer(e)} title="Supprimer">
-                          <IconTrash />
-                        </button>
-                      )}
+                      {!lectureSeule && <button className="btn btn-info btn-sm" onClick={() => onEditer(e)}><IconEdit /></button>}
+                      {!lectureSeule && <button className="btn btn-danger btn-sm" onClick={() => confirmerSupprimer(e)}><IconTrash /></button>}
                     </div>
                   </td>
                 </tr>
@@ -395,35 +328,17 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   )
 }
 
-// ── Page principale ─────────────────────────────────────────────────────────
 export default function PageInscriptions({ lectureSeule }) {
+  const { t } = useI18n()
   const [eleveAEditer, setEleveAEditer] = useState(null)
-
-  function handleEditer(eleve) {
-    setEleveAEditer(eleve)
-    // Scroll vers le formulaire
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  function handleAnnulerEdition() {
-    setEleveAEditer(null)
-  }
 
   return (
     <div className="page">
-      <h2 className="page-title">Inscriptions</h2>
-      <p className="page-subtitle">Saisissez les demandes une par une ou importez un fichier Excel.</p>
-
-      {!lectureSeule && (
-        <FormulaireIndividuel
-          eleveAEditer={eleveAEditer}
-          onAnnulerEdition={handleAnnulerEdition}
-        />
-      )}
-
+      <h2 className="page-title">{t.inscriptions.titre}</h2>
+      <p className="page-subtitle">{t.inscriptions.sous_titre}</p>
+      {!lectureSeule && <FormulaireIndividuel eleveAEditer={eleveAEditer} onAnnulerEdition={() => setEleveAEditer(null)} />}
       {!lectureSeule && !eleveAEditer && <ImportExcel />}
-
-      <ListeInscriptions onEditer={handleEditer} lectureSeule={lectureSeule} />
+      <ListeInscriptions onEditer={e => { setEleveAEditer(e); window.scrollTo({ top: 0, behavior: 'smooth' }) }} lectureSeule={lectureSeule} />
     </div>
   )
 }
