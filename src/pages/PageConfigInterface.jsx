@@ -167,13 +167,47 @@ function SectionChamps({ lectureSeule }) {
   )
 }
 
+function SectionLangue({ lectureSeule }) {
+  const { config, setConfig } = useApp()
+  const langue = config.langue || 'fr'
+
+  return (
+    <div className="card">
+      <div className="card-title">🌐 Langue de l'interface</div>
+      <div className="alert alert-info" style={{ marginBottom: 16 }}>
+        Choisissez la langue d'affichage. Le changement s'applique immédiatement à toute l'interface.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          { id: 'fr', label: 'Français', desc: 'Interface en français (par défaut)', flag: '🇫🇷' },
+          { id: 'ar', label: 'العربية', desc: 'الواجهة باللغة العربية', flag: '🇹🇳', arabic: true },
+        ].map(l => (
+          <label key={l.id} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 18px', borderRadius: 'var(--radius)', border: `2px solid ${langue === l.id ? 'var(--accent)' : 'var(--paper3)'}`, background: langue === l.id ? 'rgba(200,64,26,0.04)' : 'var(--white)', cursor: lectureSeule ? 'default' : 'pointer' }}>
+            <input type="radio" name="langue" value={l.id} checked={langue === l.id} disabled={lectureSeule}
+              onChange={() => !lectureSeule && setConfig(prev => ({ ...prev, langue: l.id }))}
+              style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
+            <span style={{ fontSize: '1.5rem' }}>{l.flag}</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', fontFamily: l.arabic ? "'Noto Sans Arabic',sans-serif" : 'inherit', direction: l.arabic ? 'rtl' : 'ltr' }}>{l.label}</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontFamily: l.arabic ? "'Noto Sans Arabic',sans-serif" : 'inherit' }}>{l.desc}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function PageConfigInterface({ lectureSeule }) {
   return (
     <div className="page">
       <h2 className="page-title">Configuration de l'interface</h2>
-      <p className="page-subtitle">Personnalisez les noms des onglets et les champs du formulaire d'inscription.</p>
+      <p className="page-subtitle">Personnalisez les noms des onglets, les champs du formulaire et la langue.</p>
+      <SectionLangue lectureSeule={lectureSeule} />
       <SectionNomsOnglets lectureSeule={lectureSeule} />
       <SectionChamps lectureSeule={lectureSeule} />
     </div>
   )
 }
+
+// ── Sélecteur de langue (ajouté en fin de fichier, remplace l'export default) ──

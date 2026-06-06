@@ -13,8 +13,9 @@ function IconTrash() {
 // ── Formulaire établissement ────────────────────────────────
 function FormulaireEtablissement({ onCreated }) {
   const toast = useToast()
-  const [nom, setNom]     = useState('')
-  const [ville, setVille] = useState('')
+  const [nom, setNom]           = useState('')
+  const [nomAffichage, setNomAffichage] = useState('')
+  const [ville, setVille]       = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit() {
@@ -26,7 +27,7 @@ function FormulaireEtablissement({ onCreated }) {
     setLoading(false)
     if (error) { toast('Erreur : ' + error.message, 'error'); return }
     toast(`Établissement "${nom}" créé`, 'success')
-    setNom(''); setVille('')
+    setNom(''); setNomAffichage(''); setVille('')
     onCreated()
   }
 
@@ -35,8 +36,12 @@ function FormulaireEtablissement({ onCreated }) {
       <div className="card-title"><span>🏫</span> Nouvel établissement</div>
       <div className="grid-2">
         <div className="form-group">
-          <label className="form-label">Nom <span className="required">*</span></label>
-          <input className="form-input" value={nom} onChange={e => setNom(e.target.value)} placeholder="École primaire..." />
+          <label className="form-label">Nom technique <span className="required">*</span></label>
+          <input className="form-input" value={nom} onChange={e => setNom(e.target.value)} placeholder="Siege-Kaid-Mhammad" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Nom d'affichage</label>
+          <input className="form-input" value={nomAffichage} onChange={e => setNomAffichage(e.target.value)} placeholder="Nom affiché dans l'interface..." style={{ direction: 'auto' }} />
         </div>
         <div className="form-group">
           <label className="form-label">Ville</label>

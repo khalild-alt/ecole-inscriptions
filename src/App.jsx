@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useAuth } from './lib/useAuth'
 import { useApp, DEFAULT_CONFIG } from './store/appStore'
+import { useI18n } from './i18n/useI18n'
 import PageLogin from './pages/PageLogin'
 import PageAnnees from './pages/PageAnnees'
 import PageSuperAdmin from './pages/PageSuperAdmin'
@@ -10,15 +11,16 @@ import PageInscriptions from './pages/PageInscriptions'
 import PageAllocation from './pages/PageAllocation'
 import PageExport from './pages/PageExport'
 
-function NomEtablissement({ nom, style }) {
+// Couleur vert kaki foncé pour le menu
+const KAKI = '#3b4a2f'
+const KAKI_DARK = '#2d3923'
+const KAKI_LIGHT = '#4a5c3a'
+
+function NomEtab({ nom, style }) {
   if (!nom) return null
-  const hasArabic = /[\u0600-\u06FF]/.test(nom)
+  const arab = /[\u0600-\u06FF]/.test(nom)
   return (
-    <span style={{
-      fontFamily: hasArabic ? "'Noto Sans Arabic', sans-serif" : 'inherit',
-      direction: hasArabic ? 'rtl' : 'ltr',
-      ...style
-    }}>
+    <span style={{ fontFamily: arab ? "'Noto Sans Arabic',sans-serif" : 'inherit', direction: arab ? 'rtl' : 'ltr', ...style }}>
       {nom}
     </span>
   )
@@ -30,7 +32,7 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ink)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: KAKI_DARK }}>
         <div style={{ color: 'white', fontFamily: 'var(--font-display)', fontSize: '1.3rem' }}>Chargement…</div>
       </div>
     )
@@ -41,7 +43,10 @@ export default function App() {
   const role = profil.role
   const anneeArchivee = annee?.statut === 'archivee'
   const nomsOnglets = config?.nomsOnglets || DEFAULT_CONFIG.nomsOnglets
-  const nomEtab = profil.etablissements?.nom || ''
+  // Nom d'affichage : utilise nom_affichage si défini, sinon nom technique
+  const nomEtab = profil.etablissements?.nom_affichage || profil.etablissements?.nom || ''
+  const langue = config?.langue || 'fr'
+  const isRtl = langue === 'ar'
 
   const tousOnglets = [
     { id: 'config_salles',    roles: ['admin', 'superadmin'] },
@@ -53,67 +58,59 @@ export default function App() {
   const ongletsFiltres = tousOnglets.filter(o => o.roles.includes(role))
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* ── Header ── */}
-      <header className="app-header no-print">
+      <header className="app-header no-print" style={{ background: KAKI_DARK, minHeight: 72 }}>
         <div className="header-left">
           {annee && (
             <button onClick={reinitialiser} style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: '1.5px solid rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.18)',
+              border: '2px solid rgba(255,255,255,0.5)',
               cursor: 'pointer',
-              padding: '5px 14px',
-              borderRadius: 6,
+              padding: '6px 16px',
+              borderRadius: 8,
               marginBottom: 6,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
             }}>
-              <span style={{ fontSize: '0.92rem', color: 'white', fontWeight: 600 }}>
-                ← Changer d'année
+              <span style={{ fontSize: '1rem', color: 'white', fontWeight: 700 }}>
+                {isRtl ? 'تغيير السنة ←' : '← Changer d\'année'}
               </span>
             </button>
           )}
-          <div className="header-etab">
-            <NomEtablissement nom={nomEtab} style={{ color: 'white' }} />
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: 'white' }}>
+            <NomEtab nom={nomEtab} />
           </div>
           {annee && (
-            <div className="header-annee">
+            <div style={{ fontSize: '0.9rem', color: '#a8c070', fontWeight: 600 }}>
               {annee.label}
-              {anneeArchivee && <span className="header-archive-badge">🔒 Archive — lecture seule</span>}
+              {anneeArchivee && <span style={{ fontSize: '0.75rem', color: '#fbbf24', marginLeft: 8 }}>🔒 {isRtl ? 'أرشيف' : 'Archive'}</span>}
             </div>
           )}
         </div>
 
         <div className="header-right">
           {annee && (
-            <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 500 }}>
-              {eleves.length} élève{eleves.length > 1 ? 's' : ''} · {allocation ? '✓ Allocation' : 'Pas d\'allocation'}
+            <div style={{ fontSize: '0.88rem', color: 'white', fontWeight: 500 }}>
+              {eleves.length} {isRtl ? 'تلميذ' : 'élève(s)'} · {allocation ? (isRtl ? '✓ التوزيع' : '✓ Allocation') : (isRtl ? 'لم يتم التوزيع' : 'Pas d\'allocation')}
             </div>
           )}
           <div style={{ fontSize: '0.88rem', color: 'white', fontWeight: 600 }}>
             {profil.prenom} {profil.nom}
-            <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 400 }}>({role})</span>
+            <span style={{ marginLeft: 6, opacity: 0.65, fontWeight: 400, fontSize: '0.8rem' }}>
+              · {profil.email} · ({role})
+            </span>
           </div>
           {role === 'superadmin' && !annee && (
-            <button className="btn btn-sm" style={{
-              background: 'rgba(255,255,255,0.2)',
-              color: 'white',
-              border: '1.5px solid rgba(255,255,255,0.5)',
-              fontWeight: 600,
-            }}
+            <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '2px solid rgba(255,255,255,0.5)', fontWeight: 700 }}
               onClick={() => setOnglet('superadmin')}>
-              ⚙ Gestion Admin
+              ⚙ {isRtl ? 'الإدارة العامة' : 'Gestion Admin'}
             </button>
           )}
-          <button className="btn btn-sm" style={{
-            background: 'rgba(255,255,255,0.15)',
-            color: 'white',
-            border: '1.5px solid rgba(255,255,255,0.4)',
-            fontWeight: 600,
-          }}
+          <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '2px solid rgba(255,255,255,0.4)', fontWeight: 700 }}
             onClick={logout}>
-            Déconnexion
+            {isRtl ? 'خروج' : 'Déconnexion'}
           </button>
         </div>
       </header>
@@ -131,55 +128,51 @@ export default function App() {
       ) : (
         <>
           {dbLoading && (
-            <div style={{ background: 'var(--accent)', color: 'white', textAlign: 'center', padding: '8px', fontSize: '0.88rem', fontWeight: 600 }} className="no-print">
-              ⏳ Synchronisation en cours…
+            <div style={{ background: 'var(--accent)', color: 'white', textAlign: 'center', padding: '8px', fontSize: '0.9rem', fontWeight: 700 }} className="no-print">
+              ⏳ {isRtl ? 'جاري المزامنة…' : 'Synchronisation en cours…'}
             </div>
           )}
 
           {/* Bannière établissement */}
-          <div className="etab-banner no-print" style={{
-            background: '#16213e',
-            borderBottom: '2px solid rgba(255,255,255,0.12)',
-            padding: '7px 28px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}>
-            <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-              Établissement :
+          <div style={{ background: KAKI, borderBottom: '2px solid rgba(255,255,255,0.15)', padding: '7px 28px', display: 'flex', alignItems: 'center', gap: 12 }} className="no-print">
+            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+              {isRtl ? 'المؤسسة :' : 'Établissement :'}
             </span>
-            <NomEtablissement nom={nomEtab} style={{
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              color: '#fbbf24',
-            }} />
-            {annee && (
-              <>
-                <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-                <span style={{ fontSize: '0.92rem', color: 'white', fontWeight: 600 }}>
-                  {annee.label}
-                </span>
-                {anneeArchivee && (
-                  <span style={{ fontSize: '0.78rem', color: '#fbbf24', marginLeft: 4 }}>🔒 Archive</span>
-                )}
-              </>
-            )}
+            <NomEtab nom={nomEtab} style={{ fontSize: '1rem', fontWeight: 700, color: '#c8e06a' }} />
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+            <span style={{ fontSize: '0.95rem', color: 'white', fontWeight: 600 }}>{annee.label}</span>
+            {anneeArchivee && <span style={{ fontSize: '0.78rem', color: '#fbbf24' }}>🔒 {isRtl ? 'أرشيف' : 'Archive'}</span>}
           </div>
 
           {/* ── Onglets sticky ── */}
-          <nav className="app-tabs no-print" style={{ position: 'sticky', top: '70px', zIndex: 90 }}>
+          <nav style={{ background: KAKI_DARK, display: 'flex', padding: '0 16px', gap: 4, overflowX: 'auto', borderBottom: '3px solid rgba(255,255,255,0.08)', position: 'sticky', top: '72px', zIndex: 90 }} className="no-print">
             {ongletsFiltres.map(o => {
               const nom = nomsOnglets[o.id] || DEFAULT_CONFIG.nomsOnglets[o.id] || { icone: '', label: o.id }
               const hasArabic = /[\u0600-\u06FF]/.test(nom.label)
+              const isActive = onglet === o.id
               return (
-                <button key={o.id} className={`tab-btn${onglet === o.id ? ' active' : ''}`} onClick={() => setOnglet(o.id)}>
-                  <span className="tab-icon">{nom.icone}</span>
-                  <span style={{
-                    direction: hasArabic ? 'rtl' : 'ltr',
-                    fontFamily: hasArabic ? "'Noto Sans Arabic', sans-serif" : 'inherit',
-                  }}>
-                    {nom.label}
-                  </span>
+                <button key={o.id} onClick={() => setOnglet(o.id)} style={{
+                  padding: '14px 24px',
+                  border: 'none',
+                  background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
+                  cursor: 'pointer',
+                  fontFamily: hasArabic ? "'Noto Sans Arabic',sans-serif" : 'var(--font-body)',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  borderBottom: isActive ? '3px solid #c8e06a' : '3px solid transparent',
+                  marginBottom: -3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s',
+                  borderRadius: isActive ? '6px 6px 0 0' : 0,
+                  direction: hasArabic ? 'rtl' : 'ltr',
+                }}>
+                  <span style={{ fontSize: '1.15rem' }}>{nom.icone}</span>
+                  <span>{nom.label}</span>
                 </button>
               )
             })}
