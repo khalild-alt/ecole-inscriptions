@@ -112,6 +112,35 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
       }
     }
 
+    // Vérification unicité numéroRecu
+    const valRecuRaw = form.numeroRecu
+    if (valRecuRaw !== undefined && valRecuRaw !== null && String(valRecuRaw).trim() !== '') {
+      const valRecu = String(valRecuRaw).trim()
+      if (annee?.id) {
+        const { data: tousElevesRecu } = await supabase
+          .from('eleves')
+          .select('id, donnees')
+          .eq('annee_id', annee.id)
+        if (tousElevesRecu) {
+          const doublonRecu = tousElevesRecu.find(e => {
+            if (modeEdition && e.id === eleveAEditer?.id) return false
+            const eId = e.donnees?.numeroRecu
+            if (eId === undefined || eId === null || eId === '') return false
+            return String(eId).trim() === valRecu
+          })
+          if (doublonRecu) {
+            const d = doublonRecu.donnees
+            const msg = langue === 'ar'
+              ? `رقم الوصل ${valRecu} مستخدم بالفعل`
+              : `Numéro reçu ${valRecu} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}`
+            setErrors(prev => ({ ...prev, numeroRecu: msg }))
+            toast(msg, 'error')
+            return
+          }
+        }
+      }
+    }
+
     if (modeEdition) {
       setSaving(true)
       const niveauId = determinerNiveau(age, config.reglesAge)

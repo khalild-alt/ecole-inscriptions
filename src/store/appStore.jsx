@@ -4,12 +4,12 @@ import { supabase } from '../lib/supabase'
 
 export const DEFAULT_CONFIG = {
   salles: [
-    { id: 's1', nom: 'S1', capacite: 30 },
-    { id: 's2', nom: 'S2', capacite: 12 },
-    { id: 's3', nom: 'S3', capacite: 16 },
-    { id: 's4', nom: 'S4', capacite: 12 },
-    { id: 's5', nom: 'S5', capacite: 20 },
-    { id: 's6', nom: 'S6', capacite: 28 },
+    { id: 's1', nom: 'S1', nomComplet: '', capacite: 30 },
+    { id: 's2', nom: 'S2', nomComplet: '', capacite: 12 },
+    { id: 's3', nom: 'S3', nomComplet: '', capacite: 16 },
+    { id: 's4', nom: 'S4', nomComplet: '', capacite: 12 },
+    { id: 's5', nom: 'S5', nomComplet: '', capacite: 20 },
+    { id: 's6', nom: 'S6', nomComplet: '', capacite: 28 },
   ],
   reglesAge: [
     { id: 'r1', niveauId: 'annee1', label: 'Année 1', ageMin: 6, ageMax: 6 },
@@ -25,8 +25,14 @@ export const DEFAULT_CONFIG = {
     { id: 'nom',           label: 'Nom',               type: 'text',     obligatoire: true,  systeme: true, readonly: false },
     { id: 'dateNaissance', label: 'Date de naissance', type: 'date',     obligatoire: true,  systeme: true, readonly: false },
     { id: 'identifiant',   label: 'Identifiant',        type: 'number',   obligatoire: false, systeme: true, readonly: false },
+    { id: 'numeroRecu',    label: 'Numéro reçu',        type: 'number',   obligatoire: false, systeme: true, readonly: false },
     { id: 'age',           label: 'Âge calculé',       type: 'computed', obligatoire: false, systeme: true, readonly: true  },
   ],
+  // Terminologie — modifiable par l'admin
+  terminologie: {
+    groupe: 'Groupe',
+    annee: 'Année',
+  },
   // Noms des onglets — modifiables par l'admin
   nomsOnglets: {
     config_salles:    { icone: '🏫', label: 'Config. Salles' },
@@ -237,6 +243,7 @@ export function AppProvider({ children }) {
       mode_allocation_defaut: cfg.modeAllocationDefaut || 'B',
       champs: cfg.champs,
       noms_onglets: cfg.nomsOnglets || DEFAULT_CONFIG.nomsOnglets,
+      terminologie: cfg.terminologie || DEFAULT_CONFIG.terminologie,
       langue: cfg.langue || 'fr',
       updated_at: new Date().toISOString()
     }, { onConflict: 'annee_id' })

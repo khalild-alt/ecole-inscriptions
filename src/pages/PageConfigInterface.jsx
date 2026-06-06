@@ -10,6 +10,46 @@ function IconTrash() {
 }
 
 // ── Noms des onglets ─────────────────────────────────────────
+function SectionTerminologie({ lectureSeule }) {
+  const { config, setConfig } = useApp()
+  const terminologie = config.terminologie || { groupe: 'Groupe', annee: 'Année' }
+
+  function maj(champ, val) {
+    setConfig(prev => ({ ...prev, terminologie: { ...(prev.terminologie || {}), [champ]: val } }))
+  }
+
+  return (
+    <div className="card">
+      <div className="card-title">📝 Terminologie</div>
+      <div className="alert alert-info">
+        Personnalisez les termes utilisés dans l'interface et les exports. Par exemple : "Groupe" peut devenir "Division", "Classe", "قسم"...
+      </div>
+      <div className="grid-2">
+        <div className="form-group">
+          <label className="form-label">Terme pour "Groupe"</label>
+          <input className="form-input" value={terminologie.groupe || 'Groupe'} disabled={lectureSeule}
+            onChange={e => maj('groupe', e.target.value)}
+            placeholder="Groupe, Classe, Division, قسم..."
+            style={{ direction: 'auto' }} />
+          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: 4 }}>
+            Utilisé dans : Allocation, Export — ex: "Année1-{terminologie.groupe || 'Groupe'}1"
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Terme pour "Année"</label>
+          <input className="form-input" value={terminologie.annee || 'Année'} disabled={lectureSeule}
+            onChange={e => maj('annee', e.target.value)}
+            placeholder="Année, Niveau, سنة..."
+            style={{ direction: 'auto' }} />
+          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: 4 }}>
+            Préfixe des niveaux dans l'allocation — ex: "{terminologie.annee || 'Année'}1-{terminologie.groupe || 'Groupe'}1"
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SectionNomsOnglets({ lectureSeule }) {
   const { config, setConfig } = useApp()
   const nomsOnglets = config.nomsOnglets || DEFAULT_CONFIG.nomsOnglets
@@ -204,6 +244,7 @@ export default function PageConfigInterface({ lectureSeule }) {
       <h2 className="page-title">Configuration de l'interface</h2>
       <p className="page-subtitle">Personnalisez les noms des onglets, les champs du formulaire et la langue.</p>
       <SectionLangue lectureSeule={lectureSeule} />
+      <SectionTerminologie lectureSeule={lectureSeule} />
       <SectionNomsOnglets lectureSeule={lectureSeule} />
       <SectionChamps lectureSeule={lectureSeule} />
     </div>

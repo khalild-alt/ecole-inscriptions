@@ -40,20 +40,21 @@ function SectionSalles({ lectureSeule }) {
       {lectureSeule && <div className="alert alert-warning">{cs.lecture_seule}</div>}
       <table>
         <thead>
-          <tr><th>{cs.nom_salle}</th><th>{cs.capacite}</th>{!lectureSeule && <th style={{ width: 60 }}></th>}</tr>
+          <tr><th>{cs.nom_salle}</th><th>Nom complet (affiché)</th><th>{cs.capacite}</th>{!lectureSeule && <th style={{ width: 60 }}></th>}</tr>
         </thead>
         <tbody>
           {config.salles.map(s => (
             <tr key={s.id}>
-              <td><input className="form-input" value={s.nom} disabled={lectureSeule} onChange={e => majSalle(s.id, 'nom', e.target.value)} style={{ width: 120 }} /></td>
-              <td><input className="form-input" type="number" min={1} value={s.capacite} disabled={lectureSeule} onChange={e => majSalle(s.id, 'capacite', e.target.value)} style={{ width: 100 }} /></td>
+              <td><input className="form-input" value={s.nom} disabled={lectureSeule} onChange={e => majSalle(s.id, 'nom', e.target.value)} style={{ width: 80 }} /></td>
+              <td><input className="form-input" value={s.nomComplet || ''} disabled={lectureSeule} onChange={e => majSalle(s.id, 'nomComplet', e.target.value)} placeholder={`ex: Salle du bas`} style={{ width: 180, direction: 'auto' }} /></td>
+              <td><input className="form-input" type="number" min={1} value={s.capacite} disabled={lectureSeule} onChange={e => majSalle(s.id, 'capacite', e.target.value)} style={{ width: 90 }} /></td>
               {!lectureSeule && <td><button className="btn btn-danger btn-sm" onClick={() => supprimerSalle(s.id, s.nom)}><IconTrash /></button></td>}
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
-            <td style={{ fontWeight: 600, color: 'var(--ink-light)', paddingTop: 12 }}>
+            <td colSpan={2} style={{ fontWeight: 600, color: 'var(--ink-light)', paddingTop: 12 }}>
               {cs.total_salles} : {config.salles.length} {config.salles.length > 1 ? cs.salles : cs.salle}
             </td>
             <td style={{ paddingTop: 12 }}><span className="badge badge-info">{capaciteTotale} {cs.places}</span></td>
