@@ -206,7 +206,6 @@ export function AppProvider({ children }) {
   const [dbLoading, setDbLoading]   = useState(false)
 
   const chargerAnnee = useCallback(async (anneeObj) => {
-    console.log('chargerAnnee appelé', anneeObj?.label, new Error().stack)
     setDbLoading(true)
     setAnnee(anneeObj)
     setAllocation(null)
@@ -337,65 +336,41 @@ export function AppProvider({ children }) {
 
   const reinitialiser = useCallback(() => { setAnnee(null); setEleves([]); setAllocation(null); setConfigState(DEFAULT_CONFIG) }, [])
 
-  // ── Compteur de modifications pour sauvegarde auto ──
-  const [compteurModifs, setCompteurModifs] = useState(0)
-  const N_MODIFS_AVANT_SAUVEGARDE = 10
-
-  // ── Créer une sauvegarde ──
-  const creerSauvegarde = useCallback(async (declencheur = 'auto') => {
+  // ── Créer une sauvegarde manuelle ──
+  const creerSauvegarde = useCallback(async (declencheur = 'manuel') => {
     if (!annee || eleves.length === 0) return
-    // Garder seulement les 20 dernières — supprimer les plus anciennes
     const { data: existantes } = await supabase
-      .from('sauvegardes_eleves')
-      .select('id, created_at')
-      .eq('annee_id', annee.id)
+      .from('sauvegardes_eleves').select('id').eq('annee_id', annee.id)
       .order('created_at', { ascending: false })
     if (existantes && existantes.length >= 20) {
       const aSupprimer = existantes.slice(19).map(s => s.id)
       await supabase.from('sauvegardes_eleves').delete().in('id', aSupprimer)
     }
-    // Créer la sauvegarde
     const donnees = eleves.map(e => ({
-      donnees: Object.fromEntries(
-        Object.entries(e).filter(([k]) => !['id','age','niveauId','statut','force','dateInscription'].includes(k))
-      ),
-      age: e.age,
-      niveauId: e.niveauId,
+      donnees: Object.fromEntries(Object.entries(e).filter(([k]) => !['id','age','niveauId','statut','force','dateInscription'].includes(k))),
+      age: e.age, niveauId: e.niveauId,
     }))
     await supabase.from('sauvegardes_eleves').insert({
-      annee_id: annee.id,
-      etablissement_id: annee.etablissement_id,
-      donnees,
-      nb_eleves: eleves.length,
-      declencheur,
+      annee_id: annee.id, etablissement_id: annee.etablissement_id,
+      donnees, nb_eleves: eleves.length, declencheur,
     })
   }, [annee, eleves])
 
-  // ── Incrémenter le compteur et sauvegarder si nécessaire ──
-  const incrementerModifs = useCallback(async () => {
-    const nouveau = compteurModifs + 1
-    setCompteurModifs(nouveau)
-    if (nouveau >= N_MODIFS_AVANT_SAUVEGARDE) {
-      await creerSauvegarde('auto')
-      setCompteurModifs(0)
-    }
-  }, [compteurModifs, creerSauvegarde])
-
   // ── Effacer toutes les inscriptions ──
-  const effacerToutesInscriptions = async () => {
+  const effacerToutesInscriptions = useCallback(async () => {
     if (!annee) return
-    try { await creerSauvegarde('avant_effacement') } catch(e) { console.warn('Sauvegarde echouee', e) }
+    try { await creerSauvegarde('avant_effacement') } catch(e) {}
     await supabase.from('eleves').delete().eq('annee_id', annee.id)
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
-    // Recharger depuis la base pour forcer le re-render
-    const { data } = await supabase.from('eleves').select('*').eq('annee_id', annee.id)
-    setEleves(data || [])
+    setEleves([])
     setAllocation(null)
-    setCompteurModifs(0)
-  }
+  }, [annee, creerSauvegarde])
+
+  // ── incrementerModifs (no-op simplifié) ──
+  const incrementerModifs = useCallback(async () => {}, [])
 
   return (
-    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
+    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
       {children}
     </AppContext.Provider>
   )
