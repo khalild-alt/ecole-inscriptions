@@ -206,6 +206,7 @@ export function AppProvider({ children }) {
   const [dbLoading, setDbLoading]   = useState(false)
 
   const chargerAnnee = useCallback(async (anneeObj) => {
+    console.log('chargerAnnee appelé', anneeObj?.label, new Error().stack)
     setDbLoading(true)
     setAnnee(anneeObj)
     setAllocation(null)
