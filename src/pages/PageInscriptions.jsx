@@ -26,7 +26,7 @@ function getNiveauClass(niveauId) {
 }
 
 function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
-  const { config, ajouterEleve, setEleves, incrementerModifs, eleves } = useApp()
+  const { config, ajouterEleve, setEleves, incrementerModifs, eleves, annee } = useApp()
   const { t, langue } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
@@ -63,20 +63,22 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
         errs[c.id] = `${c.label} ${t.commun.obligatoire}`
       }
       // Vérifier que l'identifiant est un entier valide si renseigné
-      if (c.id === 'identifiant' && form[c.id]) {
+      if (c.id === 'identifiant' && form[c.id] !== undefined && form[c.id] !== '') {
         const val = String(form[c.id]).trim()
-        if (!/^\d+$/.test(val)) {
+        if (val && !/^\d+$/.test(val)) {
           errs[c.id] = langue === 'ar' ? 'يجب أن يكون المعرف رقماً صحيحاً' : "L'identifiant doit être un nombre entier"
-        } else {
-          // Vérifier l'unicité (sauf si on modifie le même élève)
-          const doublon = eleves.find(e =>
-            e.identifiant && String(e.identifiant) === val &&
-            (!modeEdition || e.id !== eleveAEditer?.id)
-          )
+        } else if (val) {
+          // Vérifier l'unicité — comparer en string et en number
+          const doublon = eleves.find(e => {
+            if (!e.identifiant && e.identifiant !== 0) return false
+            const eId = String(e.identifiant).trim()
+            const memeEleve = modeEdition && e.id === eleveAEditer?.id
+            return eId === val && !memeEleve
+          })
           if (doublon) {
             errs[c.id] = langue === 'ar'
-              ? `المعرف ${val} مستخدم بالفعل (${doublon.prenom} ${doublon.nom})`
-              : `Identifiant ${val} déjà utilisé par ${doublon.prenom} ${doublon.nom}`
+              ? `المعرف ${val} مستخدم بالفعل — ${doublon.prenom || ''} ${doublon.nom || ''}`
+              : `Identifiant ${val} déjà utilisé — ${doublon.prenom || ''} ${doublon.nom || ''}`
           }
         }
       }
@@ -90,6 +92,23 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
     const age = calculerAge(form.dateNaissance, config.modeCalculAge)
     if (age === null) { toast('Date invalide', 'error'); return }
     if (!determinerNiveau(age, config.reglesAge)) { toast(ti.hors_tranche, 'error'); return }
+
+    // Vérification unicité identifiant en base (source de vérité)
+    if (form.identifiant !== undefined && form.identifiant !== '') {
+      const { data: existants } = await supabase
+        .from('eleves')
+        .select('id, donnees')
+        .eq('annee_id', annee.id)
+        .contains('donnees', { identifiant: String(form.identifiant) })
+      const doublon = (existants || []).find(e => !modeEdition || e.id !== eleveAEditer?.id)
+      if (doublon) {
+        const d = doublon.donnees
+        setErrors(prev => ({ ...prev, identifiant: langue === 'ar'
+          ? `المعرف ${form.identifiant} مستخدم بالفعل`
+          : `Identifiant ${form.identifiant} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}` }))
+        return
+      }
+    }
 
     if (modeEdition) {
       setSaving(true)
