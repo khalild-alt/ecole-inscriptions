@@ -27,7 +27,7 @@ function getNiveauClass(niveauId) {
 
 function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   const { config, ajouterEleve, setEleves, incrementerModifs, eleves } = useApp()
-  const { t } = useI18n()
+  const { t, langue } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
 
