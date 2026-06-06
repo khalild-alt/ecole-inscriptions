@@ -69,17 +69,7 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
           errs[c.id] = langue === 'ar' ? 'يجب أن يكون المعرف رقماً صحيحاً' : "L'identifiant doit être un nombre entier"
         } else if (val) {
           // Vérifier l'unicité — comparer en string et en number
-          const doublon = eleves.find(e => {
-            if (!e.identifiant && e.identifiant !== 0) return false
-            const eId = String(e.identifiant).trim()
-            const memeEleve = modeEdition && e.id === eleveAEditer?.id
-            return eId === val && !memeEleve
-          })
-          if (doublon) {
-            errs[c.id] = langue === 'ar'
-              ? `المعرف ${val} مستخدم بالفعل — ${doublon.prenom || ''} ${doublon.nom || ''}`
-              : `Identifiant ${val} déjà utilisé — ${doublon.prenom || ''} ${doublon.nom || ''}`
-          }
+          // unicité vérifiée en base dans handleSubmit
         }
       }
     }
@@ -88,30 +78,37 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   }
 
   async function handleSubmit() {
-    if (!valider()) { toast(ti.hors_tranche, 'error'); return }
+    if (!valider()) { toast(langue === 'ar' ? 'تحقق من الحقول المطلوبة' : 'Vérifiez les champs obligatoires', 'error'); return }
     const age = calculerAge(form.dateNaissance, config.modeCalculAge)
     if (age === null) { toast('Date invalide', 'error'); return }
     if (!determinerNiveau(age, config.reglesAge)) { toast(ti.hors_tranche, 'error'); return }
 
     // Vérification unicité identifiant en base (source de vérité)
-    if (form.identifiant !== undefined && form.identifiant !== '') {
-      const valId = String(form.identifiant).trim()
-      // Récupérer tous les élèves de l'année et filtrer côté client
-      const { data: tousEleves } = await supabase
-        .from('eleves')
-        .select('id, donnees')
-        .eq('annee_id', annee.id)
-      const doublon = (tousEleves || []).find(e => {
-        if (modeEdition && e.id === eleveAEditer?.id) return false
-        const eId = e.donnees?.identifiant
-        return eId !== undefined && eId !== null && eId !== '' && String(eId).trim() === valId
-      })
-      if (doublon) {
-        const d = doublon.donnees
-        setErrors(prev => ({ ...prev, identifiant: langue === 'ar'
-          ? `المعرف ${valId} مستخدم بالفعل`
-          : `Identifiant ${valId} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}` }))
-        return
+    const valIdRaw = form.identifiant
+    if (valIdRaw !== undefined && valIdRaw !== null && String(valIdRaw).trim() !== '') {
+      const valId = String(valIdRaw).trim()
+      if (annee?.id) {
+        const { data: tousEleves, error: errFetch } = await supabase
+          .from('eleves')
+          .select('id, donnees')
+          .eq('annee_id', annee.id)
+        if (!errFetch && tousEleves) {
+          const doublon = tousEleves.find(e => {
+            if (modeEdition && e.id === eleveAEditer?.id) return false
+            const eId = e.donnees?.identifiant
+            if (eId === undefined || eId === null || eId === '') return false
+            return String(eId).trim() === valId
+          })
+          if (doublon) {
+            const d = doublon.donnees
+            const msg = langue === 'ar'
+              ? `المعرف ${valId} مستخدم بالفعل`
+              : `Identifiant ${valId} déjà utilisé — ${d?.prenom || ''} ${d?.nom || ''}`
+            setErrors(prev => ({ ...prev, identifiant: msg }))
+            toast(msg, 'error')
+            return
+          }
+        }
       }
     }
 
