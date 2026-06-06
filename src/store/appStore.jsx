@@ -383,15 +383,13 @@ export function AppProvider({ children }) {
   // ── Effacer toutes les inscriptions ──
   const effacerToutesInscriptions = useCallback(async () => {
     if (!annee) return
-    // Sauvegarde automatique avant effacement
-    await creerSauvegarde('avant_effacement')
-    // Effacer
+    try { await creerSauvegarde('avant_effacement') } catch(e) { console.warn('Sauvegarde echouee', e) }
     await supabase.from('eleves').delete().eq('annee_id', annee.id)
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
     setEleves([])
     setAllocation(null)
     setCompteurModifs(0)
-  }, [annee, creerSauvegarde])
+  }, [annee, eleves, creerSauvegarde])
 
   return (
     <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
