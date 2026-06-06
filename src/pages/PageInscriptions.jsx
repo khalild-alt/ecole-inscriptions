@@ -1,5 +1,5 @@
+import React, { useState, useRef } from 'react'
 // src/pages/PageInscriptions.jsx
-import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import { useApp, calculerAge, determinerNiveau } from '../store/appStore'
 import { useToast } from '../components/Toast'
@@ -307,6 +307,25 @@ function ImportExcel() {
   )
 }
 
+function useColResize(nbCols) {
+  const [widths, setWidths] = React.useState(() => Array(nbCols).fill(null))
+  const resizing = React.useRef(null)
+
+  function onMouseDown(idx, e) {
+    e.preventDefault()
+    resizing.current = { idx, startX: e.clientX, startW: widths[idx] || 120 }
+    function onMove(ev) {
+      const delta = ev.clientX - resizing.current.startX
+      const newW = Math.max(40, resizing.current.startW + delta)
+      setWidths(prev => { const n = [...prev]; n[resizing.current.idx] = newW; return n })
+    }
+    function onUp() { resizing.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+  return { widths, onMouseDown }
+}
+
 function ListeInscriptions({ onEditer, lectureSeule }) {
   const { config, eleves, supprimerEleve, allocation } = useApp()
   const { t, langue } = useI18n()
@@ -418,6 +437,7 @@ export default function PageInscriptions({ lectureSeule }) {
             if (!window.confirm(langue === 'ar' ? 'حذف جميع التسجيلات ؟\n\nسيتم إنشاء نسخة احتياطية تلقائياً.' : 'Effacer toutes les inscriptions ?\n\nUne sauvegarde sera créée automatiquement.')) return
             await effacerToutesInscriptions()
             toast2(langue === 'ar' ? 'تم الحذف' : 'Inscriptions effacées', 'info')
+            setEleveAEditer(null)
           }}>
             🗑 {langue === 'ar' ? 'حذف الكل' : 'Effacer tout'}
           </button>
