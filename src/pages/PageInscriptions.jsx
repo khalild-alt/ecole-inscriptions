@@ -59,17 +59,17 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
     const errs = {}
     for (const c of config.champs) {
       if (c.type === 'computed') continue
-      if (c.obligatoire && !form[c.id]?.trim?.() && !form[c.id]) {
+      // Vérification champ obligatoire — compatible text ET number
+      const valBrut = form[c.id]
+      const estVide = valBrut === undefined || valBrut === null || String(valBrut).trim() === ''
+      if (c.obligatoire && estVide) {
         errs[c.id] = `${c.label} ${t.commun.obligatoire}`
       }
       // Vérifier que l'identifiant est un entier valide si renseigné
-      if (c.id === 'identifiant' && form[c.id] !== undefined && form[c.id] !== '') {
-        const val = String(form[c.id]).trim()
-        if (val && !/^\d+$/.test(val)) {
+      if (c.id === 'identifiant' && !estVide) {
+        const val = String(valBrut).trim()
+        if (!/^\d+$/.test(val)) {
           errs[c.id] = langue === 'ar' ? 'يجب أن يكون المعرف رقماً صحيحاً' : "L'identifiant doit être un nombre entier"
-        } else if (val) {
-          // Vérifier l'unicité — comparer en string et en number
-          // unicité vérifiée en base dans handleSubmit
         }
       }
     }
