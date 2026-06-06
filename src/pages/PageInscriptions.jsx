@@ -27,7 +27,7 @@ function getNiveauClass(niveauId) {
 
 function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   const { config, ajouterEleve, setEleves, incrementerModifs, eleves } = useApp()
-  const { t } = useI18n()
+  const { t, langue } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
 
@@ -159,7 +159,7 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
 
 function ImportExcel() {
   const { config, ajouterEleve } = useApp()
-  const { t } = useI18n()
+  const { t, langue } = useI18n()
   const toast = useToast()
   const fileRef = useRef()
   const [preview, setPreview] = useState(null)
@@ -259,7 +259,7 @@ function ImportExcel() {
 
 function ListeInscriptions({ onEditer, lectureSeule }) {
   const { config, eleves, supprimerEleve, allocation } = useApp()
-  const { t } = useI18n()
+  const { t, langue } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
   const [filtre, setFiltre] = useState('')
@@ -348,7 +348,7 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
 }
 
 export default function PageInscriptions({ lectureSeule }) {
-  const { t } = useI18n()
+  const { t, langue } = useI18n()
   const [eleveAEditer, setEleveAEditer] = useState(null)
 
   return (
