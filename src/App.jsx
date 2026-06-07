@@ -10,6 +10,7 @@ import PageConfigInterface from './pages/PageConfigInterface'
 import PageInscriptions from './pages/PageInscriptions'
 import PageAllocation from './pages/PageAllocation'
 import PageExport from './pages/PageExport'
+import PageRestauration from './pages/PageRestauration'
 
 // Couleur vert kaki foncé pour le menu
 const KAKI = '#3b4a2f'
@@ -54,6 +55,7 @@ export default function App() {
     { id: 'inscriptions',     roles: ['admin', 'superadmin', 'operateur'] },
     { id: 'allocation',       roles: ['admin', 'superadmin', 'operateur'] },
     { id: 'export',           roles: ['admin', 'superadmin', 'operateur'] },
+    { id: 'restauration',      roles: ['admin', 'superadmin'] },
   ]
   const ongletsFiltres = tousOnglets.filter(o => o.roles.includes(role))
 
@@ -121,8 +123,7 @@ export default function App() {
       ) : !annee ? (
         <main style={{ flex: 1 }}>
           <PageAnnees onSelectAnnee={a => {
-            chargerAnnee(a)
-            setOnglet(role === 'operateur' ? 'inscriptions' : 'config_salles')
+            chargerAnnee(a, role === 'operateur' ? 'inscriptions' : 'config_salles')
           }} />
         </main>
       ) : (
@@ -184,6 +185,7 @@ export default function App() {
             {onglet === 'inscriptions'     && <PageInscriptions     lectureSeule={anneeArchivee} />}
             {onglet === 'allocation'       && <PageAllocation       lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.label} />}
             {onglet === 'export'           && <PageExport           nomEtab={nomEtab} anneeLabel={annee?.label} />}
+            {onglet === 'restauration'    && <PageRestauration />}
           </main>
         </>
       )}

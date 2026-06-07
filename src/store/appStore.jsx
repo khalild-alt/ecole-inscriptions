@@ -205,11 +205,11 @@ export function AppProvider({ children }) {
   const [onglet, setOnglet]         = useState('config_salles')
   const [dbLoading, setDbLoading]   = useState(false)
 
-  const chargerAnnee = useCallback(async (anneeObj) => {
+  const chargerAnnee = useCallback(async (anneeObj, ongletInitial) => {
     setDbLoading(true)
     setAnnee(anneeObj)
     setAllocation(null)
-    setOnglet('config_salles')
+    if (ongletInitial) setOnglet(ongletInitial)
     const { data: cfg } = await supabase.from('configurations').select('*').eq('annee_id', anneeObj.id).single()
     if (cfg) {
       setConfigState({
