@@ -255,7 +255,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const toast = useToast()
   const terminologie = config.terminologie || DEFAULT_CONFIG.terminologie || { groupe: 'Groupe', annee: 'Année' }
 
-  const [groupesFiges, setGroupesFiges] = useState(new Set())
+  // Charger les groupes figés depuis l'allocation sauvegardée
+  const [groupesFiges, setGroupesFiges] = useState(() => {
+    if (allocation?.groupesFiges) return new Set(allocation.groupesFiges)
+    return new Set()
+  })
   const [eleveADeplacer, setEleveADeplacer] = useState(null)
   const [niveauEleveADeplacer, setNiveauEleveADeplacer] = useState(null)
 
@@ -265,14 +269,23 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     toast('Calcul lancé…', 'info')
   }
 
-  function handleFiger(classeId, figer) {
-    setGroupesFiges(prev => {
-      const n = new Set(prev)
-      if (figer) n.add(classeId)
-      else n.delete(classeId)
-      return n
-    })
-    toast(figer ? '🔒 Groupe figé — ne sera pas modifié au prochain calcul' : '🔓 Groupe libéré', 'info')
+  async function handleFiger(classeId, figer) {
+    const nouveauxFiges = new Set(groupesFiges)
+    if (figer) nouveauxFiges.add(classeId)
+    else nouveauxFiges.delete(classeId)
+    setGroupesFiges(nouveauxFiges)
+    // Sauvegarder en base
+    if (annee?.id) {
+      await supabase.from('allocations').upsert({
+        annee_id: annee.id,
+        affectations: allocation.affectations,
+        groupes_figes: Array.from(nouveauxFiges),
+        mode: allocation.mode || 'multi',
+        calculated_at: allocation.date || new Date().toISOString()
+      }, { onConflict: 'annee_id' })
+      setAllocation(prev => ({ ...prev, groupesFiges: Array.from(nouveauxFiges) }))
+    }
+    toast(figer ? '🔒 Groupe figé et sauvegardé' : '🔓 Groupe libéré', 'info')
   }
 
   function handleDeplacer(eleve, niveauId) {

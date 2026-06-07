@@ -227,7 +227,7 @@ export function AppProvider({ children }) {
     const { data: elevesData } = await supabase.from('eleves').select('*').eq('annee_id', anneeObj.id).order('date_inscription')
     setEleves((elevesData || []).map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: e.statut, force: e.force, dateInscription: e.date_inscription })))
     const { data: alloc } = await supabase.from('allocations').select('*').eq('annee_id', anneeObj.id).order('calculated_at', { ascending: false }).limit(1).maybeSingle()
-    if (alloc) setAllocation({ affectations: alloc.affectations, mode: alloc.mode, date: alloc.calculated_at })
+    if (alloc) setAllocation({ affectations: alloc.affectations, mode: alloc.mode, date: alloc.calculated_at, groupesFiges: alloc.groupes_figes || [] })
     setDbLoading(false)
   }, [])
 
