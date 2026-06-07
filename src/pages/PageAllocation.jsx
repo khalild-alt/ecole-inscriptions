@@ -344,7 +344,6 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const tauxGlobal = totalCapacite > 0 ? ((totalAcceptes / totalCapacite) * 100).toFixed(1) : 0
 
   // Vérifier si l'allocation a le format multi-classes
-  const hasClasses = allocation && Object.values(allocation.affectations).some(r => r.classes)
 
   return (
     <div className="page">
@@ -369,7 +368,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
         </div>
       )}
 
-      {allocation && hasClasses ? (
+      {allocation && Object.keys(allocation.affectations).length > 0 ? (
         <>
           <div className="stats-row">
             <div className="stat-card"><div className="stat-value">{totalEleves}</div><div className="stat-label">Demandes totales</div></div>
@@ -384,8 +383,25 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           </div>
 
           {config.reglesAge.map(r => {
-            const res = allocation.affectations[r.niveauId]
-            if (!res || !res.classes) return null
+            const resRaw = allocation.affectations[r.niveauId]
+            if (!resRaw) return null
+            // Normaliser vers le format multi-classes
+            const res = { ...resRaw }
+            if (!res.classes) {
+              const elevesAcceptes = eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'accepte')
+              const elevesAttente = eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'liste_attente')
+              res.classes = res.salle ? [{
+                classeId: r.niveauId + '_c1', classeNum: 1,
+                salle: res.salle,
+                nbAcceptes: elevesAcceptes.length,
+                placesLibres: Math.max(0, res.salle.capacite - elevesAcceptes.length),
+                tauxRemplissage: res.salle.capacite > 0 ? ((elevesAcceptes.length / res.salle.capacite) * 100).toFixed(1) : '0',
+                elevesIds: elevesAcceptes.map(e => e.id),
+              }] : []
+              res.nbDemandes = elevesAcceptes.length + elevesAttente.length
+              res.nbAcceptes = elevesAcceptes.length
+              res.nbAttente = elevesAttente.length
+            }
             return (
               <CarteNiveau key={r.niveauId} niveauId={r.niveauId} label={r.label} res={res}
                 eleves={eleves} config={config} terminologie={terminologie}
@@ -408,8 +424,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                 </thead>
                 <tbody>
                   {config.reglesAge.map(r => {
-                    const res = allocation.affectations[r.niveauId]
-                    if (!res || !res.classes) return null
+                    const resRaw2 = allocation.affectations[r.niveauId]
+                    if (!resRaw2) return null
+                    const res = resRaw2.classes ? resRaw2 : { ...resRaw2, classes: resRaw2.salle ? [{ classeId: r.niveauId+'_c1', classeNum: 1, salle: resRaw2.salle, nbAcceptes: resRaw2.acceptes||0, placesLibres: resRaw2.placesLibres||0, tauxRemplissage: resRaw2.tauxRemplissage||0, elevesIds: [] }] : [] }
+                    if (!res.classes || res.classes.length === 0) return null
+                    
                     return res.classes.map((cls, idx) => (
                       <tr key={cls.classeId}>
                         {idx === 0 && (
