@@ -225,7 +225,13 @@ export function AppProvider({ children }) {
       setConfigState(DEFAULT_CONFIG)
     }
     const { data: elevesData } = await supabase.from('eleves').select('*').eq('annee_id', anneeObj.id).order('date_inscription')
-    setEleves((elevesData || []).map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: e.statut, force: e.force, dateInscription: e.date_inscription })))
+    setEleves((elevesData || [])
+      .map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: e.statut, force: e.force, dateInscription: e.date_inscription }))
+      .sort((a, b) => {
+        // Trier par _ordre si disponible, sinon par dateInscription
+        if (a._ordre !== undefined && b._ordre !== undefined) return a._ordre - b._ordre
+        return new Date(a.dateInscription) - new Date(b.dateInscription)
+      }))
     const { data: alloc } = await supabase.from('allocations').select('*').eq('annee_id', anneeObj.id).order('calculated_at', { ascending: false }).limit(1).maybeSingle()
     if (alloc) setAllocation({ affectations: alloc.affectations, mode: alloc.mode, date: alloc.calculated_at, groupesFiges: alloc.groupes_figes || [] })
     setDbLoading(false)
@@ -267,19 +273,21 @@ export function AppProvider({ children }) {
     return el
   }, [annee, config])
 
-  // Insert batch ordonné — respecte l'ordre du tableau
+  // Insert batch ordonné — respecte l'ordre du tableau via champ _ordre dans donnees
   const ajouterElevesBatch = useCallback(async (listeDonnees) => {
-    const rows = listeDonnees.map(donnees => {
+    const rows = listeDonnees.map((donnees, idx) => {
       const age = calculerAge(donnees.dateNaissance, config.modeCalculAge)
       const niveauId = determinerNiveau(age, config.reglesAge)
-      return { annee_id: annee.id, etablissement_id: annee.etablissement_id, donnees, age, niveau_id: niveauId, statut: 'attente', force: false }
+      // Stocker l'ordre d'import dans les données
+      const donneesAvecOrdre = { ...donnees, _ordre: idx }
+      return { annee_id: annee.id, etablissement_id: annee.etablissement_id, donnees: donneesAvecOrdre, age, niveau_id: niveauId, statut: 'attente', force: false }
     })
     const { data, error } = await supabase.from('eleves').insert(rows).select()
     if (error) throw error
-    // data revient dans l'ordre d'insertion — on trie par created_at pour être sûr
+    // Trier par _ordre pour garantir l'ordre d'import
     const nouveaux = (data || [])
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
       .map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: 'attente', force: false, dateInscription: e.date_inscription }))
+      .sort((a, b) => (a._ordre ?? 0) - (b._ordre ?? 0))
     setEleves(prev => [...prev, ...nouveaux])
     return nouveaux
   }, [annee, config])
