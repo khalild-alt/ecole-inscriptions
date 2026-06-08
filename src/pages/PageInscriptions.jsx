@@ -240,8 +240,10 @@ function ImportExcel() {
           const niveauId = determinerNiveau(age, config.reglesAge)
           return { ...obj, age, niveauId, _ligne: idx + 2 }
         }).filter(r => r.prenom || r.nom)
+        // Trier par ordre de ligne du fichier pour respecter l'ordre d'import
+        mapped.sort((a, b) => a._ligne - b._ligne)
         setPreview(mapped)
-        toast(`${mapped.length} ligne(s) lue(s)`, 'info')
+        toast(`\${mapped.length} ligne(s) lue(s) — cliquez sur Confirmer pour importer`, 'info')
       } catch(err) { toast('Erreur : ' + err.message, 'error') }
     }
     reader.readAsBinaryString(file)
@@ -314,6 +316,29 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   const ti = t.inscriptions
   const [filtre, setFiltre] = useState('')
   const [filtreNiveau, setFiltreNiveau] = useState('')
+
+  function exporterExcel() {
+    const wb = XLSX.utils.book_new()
+    const champs = config.champs.filter(c => c.type !== 'computed')
+    const headers = ['#', ...champs.map(c => c.label), 'Âge', 'Niveau', 'Statut']
+    if (allocation) headers.push('Salle')
+    const rows = elevesFiltrés.map((e, idx) => {
+      const row = [idx + 1, ...champs.map(c => e[c.id] || ''), e.age || '', config.reglesAge.find(r => r.niveauId === e.niveauId)?.label || '']
+      const statut = e.statut === 'accepte' ? 'Accepté' : e.statut === 'liste_attente' ? "Liste d'attente" : 'En attente'
+      row.push(statut)
+      if (allocation) {
+        const res = allocation.affectations[e.niveauId]
+        const cls = res?.classes?.find(c => c.elevesIds?.includes(e.id))
+        row.push(cls?.salle?.nomComplet || cls?.salle?.nom || (e.statut === 'accepte' ? res?.salle?.nom || '—' : '—'))
+      }
+      return row
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = headers.map(() => ({ wch: 18 }))
+    XLSX.utils.book_append_sheet(wb, ws, 'Inscrits')
+    XLSX.writeFile(wb, `inscrits_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.xlsx`)
+    toast('Export généré', 'success')
+  }
   const champsFiltres = config.champs.filter(c => c.type !== 'computed')
   const nbCols = 1 + champsFiltres.length + 2 + (allocation ? 2 : 0) + 1
   const [colWidths, setColWidths] = useState(() => Array(20).fill(null))
@@ -374,21 +399,24 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
           </span>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <input className="form-input" placeholder={ti.rechercher} value={filtre} onChange={e => setFiltre(e.target.value)} style={{ maxWidth: 260 }} />
         <select className="form-input" value={filtreNiveau} onChange={e => setFiltreNiveau(e.target.value)} style={{ maxWidth: 180 }}>
           <option value="">{ti.tous_niveaux}</option>
           {config.reglesAge.map(r => <option key={r.niveauId} value={r.niveauId}>{r.label}</option>)}
         </select>
+        <button className="btn btn-success btn-sm" onClick={exporterExcel} disabled={eleves.length === 0}>
+          📊 Export Excel
+        </button>
       </div>
       {elevesFiltrés.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ink-muted)', fontSize: '1rem' }}>
           {eleves.length === 0 ? ti.aucune_inscr : ti.aucun_filtre}
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 500, border: '1px solid var(--paper3)', borderRadius: 'var(--radius)' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
               <tr>
                 {[
                   { label: ti.col_num, key: 'num', defW: 40 },
