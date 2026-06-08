@@ -213,6 +213,7 @@ function ImportExcel() {
   const toast = useToast()
   const fileRef = useRef()
   const [preview, setPreview] = useState(null)
+  const [importing, setImporting] = useState(false)
   const ti = t.inscriptions
 
   function handleFile(e) {
@@ -250,12 +251,35 @@ function ImportExcel() {
     e.target.value = ''
   }
 
-  function confirmerImport() {
-    if (!preview) return
-    let ok = 0, ko = 0
-    for (const row of preview) { if (row.niveauId) { ajouterEleve(row); ok++ } else ko++ }
-    toast(`${ok} importé(s)${ko > 0 ? `, ${ko} ignoré(s)` : ''}`, ok > 0 ? 'success' : 'error')
-    setPreview(null)
+  async function confirmerImport() {
+    if (!preview || importing) return
+    setImporting(true)
+    const valides = preview.filter(r => r.niveauId)
+    const rejetes = preview.filter(r => !r.niveauId)
+    try {
+      await ajouterElevesBatch(valides)
+      if (rejetes.length > 0) {
+        const wb = XLSX.utils.book_new()
+        const headers = ['Ligne fichier', ...config.champs.filter(c => c.type !== 'computed').map(c => c.label), 'Âge calculé', 'Raison du rejet']
+        const rows = rejetes.map(r => [
+          r._ligne,
+          ...config.champs.filter(c => c.type !== 'computed').map(c => r[c.id] || ''),
+          r.age ?? '',
+          r.age === null ? 'Date de naissance invalide' : 'Âge ' + r.age + ' ans hors tranche configurée',
+        ])
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+        ws['!cols'] = headers.map(() => ({ wch: 20 }))
+        XLSX.utils.book_append_sheet(wb, ws, 'Non importés')
+        XLSX.writeFile(wb, 'eleves-non-importes.xlsx')
+        toast(valides.length + ' importé(s) · ' + rejetes.length + ' non importé(s) → fichier Excel généré', 'info')
+      } else {
+        toast(valides.length + ' élève(s) importé(s)', 'success')
+      }
+      setPreview(null)
+    } catch(err) {
+      toast('Erreur import : ' + err.message, 'error')
+    }
+    setImporting(false)
   }
 
   function telechargerModele() {
@@ -300,7 +324,9 @@ function ImportExcel() {
             </table>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button className="btn btn-success" onClick={confirmerImport}>{interpoler(ti.confirmer_import, { n: preview.filter(r => r.niveauId).length })}</button>
+            <button className="btn btn-success" onClick={confirmerImport} disabled={importing}>
+              {importing ? `Import en cours… (${preview.filter(r => r.niveauId).length} élèves)` : interpoler(ti.confirmer_import, { n: preview.filter(r => r.niveauId).length })}
+            </button>
             <button className="btn btn-ghost" onClick={() => setPreview(null)}>{ti.annuler_import}</button>
           </div>
         </>
