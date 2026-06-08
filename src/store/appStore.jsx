@@ -306,6 +306,7 @@ export function AppProvider({ children }) {
     for (const r of config.reglesAge) {
       dpn[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription))
     }
+    console.log('MODE ALLOCATION:', config.modeAllocationDefaut)
     const { affectations } = optimiserAllocation(dpn, config.salles, config.modeAllocationDefaut || 'C')
 
     // Calculer les statuts à partir des classes
