@@ -365,7 +365,8 @@ export function AppProvider({ children }) {
     }
 
     for (const [id, statut] of Object.entries(statuts)) await supabase.from('eleves').update({ statut }).eq('id', id)
-    await supabase.from('allocations').upsert({ annee_id: annee.id, affectations, mode: 'multi', calculated_at: new Date().toISOString() }, { onConflict: 'annee_id' })
+    await supabase.from('allocations').delete().eq('annee_id', annee.id)
+    await supabase.from('allocations').insert({ annee_id: annee.id, affectations, mode: 'multi', calculated_at: new Date().toISOString() })
     setEleves(prev => prev.map(e => ({ ...e, statut: statuts[e.id] || e.statut })))
     setAllocation({ affectations, mode: 'multi', date: new Date().toISOString() })
   }, [annee, config, eleves, modeAllocation])

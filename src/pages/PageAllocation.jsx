@@ -376,7 +376,8 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
       rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + élèves + vide
     }
 
-    XLSX.utils.book_append_sheet(wb, ws, r.label.slice(0, 31))
+    const sheetName = r.label.replace(/[\\/*\[\]?:]/g, '').slice(0, 31)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName || ('Niveau' + r.niveauId))
   }
 
   // ── Feuille synthèse ──
@@ -450,11 +451,12 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     if (!annee?.id) return
     const aff = nouvellesAffectations || allocation.affectations
     const figes = Array.from(nouveauxFiges || groupesFiges)
-    await supabase.from('allocations').upsert({
+    await supabase.from('allocations').delete().eq('annee_id', annee.id)
+    await supabase.from('allocations').insert({
       annee_id: annee.id, affectations: aff,
       groupes_figes: figes, mode: 'multi',
       calculated_at: new Date().toISOString()
-    }, { onConflict: 'annee_id' })
+    })
     setAllocation({ affectations: aff, mode: 'multi', date: new Date().toISOString(), groupesFiges: figes })
   }
 
