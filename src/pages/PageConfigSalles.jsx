@@ -169,6 +169,7 @@ function SectionModeOptimisation({ lectureSeule }) {
       <div className="alert alert-info">{cs.info_optim}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {[
+          { id: 'C', label: "Mode C — Équilibrer les groupes d'un même niveau (défaut)", desc: "Phase 1 : optimise l'affectation des salles aux niveaux. Phase 2 : distribue les élèves équitablement entre les groupes d'un même niveau." },
           { id: 'B', label: cs.mode_b, desc: cs.mode_b_desc },
           { id: 'A', label: cs.mode_a, desc: cs.mode_a_desc },
         ].map(m => (

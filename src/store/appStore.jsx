@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG = {
     { id: 'r4', niveauId: 'annee4', label: 'Année 4', ageMin: 10, ageMax: 12 },
   ],
   modeCalculAge: 'annee',
-  modeAllocationDefaut: 'B',
+  modeAllocationDefaut: 'C',
   langue: 'fr',
   champs: [
     { id: 'prenom',        label: 'Prénom',           type: 'text',     obligatoire: true,  systeme: true, readonly: false },
@@ -52,7 +52,7 @@ export const TEST_CONFIG = {
   ],
   reglesAge: DEFAULT_CONFIG.reglesAge,
   modeCalculAge: 'annee',
-  modeAllocationDefaut: 'B',
+  modeAllocationDefaut: 'C',
   langue: 'fr',
   champs: DEFAULT_CONFIG.champs,
   nomsOnglets: DEFAULT_CONFIG.nomsOnglets,
@@ -307,7 +307,7 @@ export function AppProvider({ children }) {
     for (const r of config.reglesAge) {
       dpn[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription))
     }
-    const { affectations } = optimiserAllocation(dpn, config.salles)
+    const { affectations } = optimiserAllocation(dpn, config.salles, config.modeAllocationDefaut || 'C')
 
     // Calculer les statuts à partir des classes
     const statuts = {}
