@@ -535,9 +535,59 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   )
 }
 
-export default function PageInscriptions({ lectureSeule }) {
+function imprimerPDF(config, eleves, allocation, nomEtab, anneeLabel, langue) {
+  function hasArabic(str) { return /[\u0600-\u06FF]/.test(str || '') }
+  function arabStyle(str) { return hasArabic(String(str || '')) ? 'style="font-family:\'Noto Sans Arabic\',sans-serif;direction:rtl;text-align:right;"' : '' }
+  const champsVisibles = config.champs.filter(c => c.type !== 'computed')
+  const date = new Date().toLocaleDateString('fr-FR')
+  const acceptes = eleves.filter(e => e.statut === 'accepte')
+  const attente = eleves.filter(e => e.statut === 'liste_attente')
+  const isRtl = langue === 'ar'
+  const tableRows = (liste) => liste.map((e, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      ${champsVisibles.map(c => `<td ${arabStyle(e[c.id])}>${e[c.id] || '—'}</td>`).join('')}
+      <td>${e.age ?? '—'}</td>
+      <td ${arabStyle(config.reglesAge.find(r => r.niveauId === e.niveauId)?.label)}>${config.reglesAge.find(r => r.niveauId === e.niveauId)?.label || '—'}</td>
+      ${allocation ? `<td>${allocation.affectations[e.niveauId]?.salle?.nom || '—'}</td>` : ''}
+    </tr>`).join('')
+  const html = `<!DOCTYPE html><html dir="${isRtl ? 'rtl' : 'ltr'}"><head><meta charset="UTF-8">
+    <title>${nomEtab} — ${anneeLabel}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>* { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: ${isRtl ? "'Noto Sans Arabic'," : ''}Arial, sans-serif; font-size: 10px; padding: 20px; direction: ${isRtl ? 'rtl' : 'ltr'}; }
+    .header { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #3b4a2f; margin-bottom: 16px; }
+    .title { font-size: 16px; font-weight: bold; color: #3b4a2f; }
+    .etab { font-size: 13px; font-weight: 700; color: #c8401a; font-family: 'Noto Sans Arabic', Arial; }
+    .section { font-size: 13px; font-weight: bold; margin: 20px 0 8px; padding: 6px 10px; background: #3b4a2f; color: white; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #3b4a2f; color: white; padding: 6px 8px; text-align: ${isRtl ? 'right' : 'left'}; font-size: 9px; }
+    td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) td { background: #f7f6f2; }
+    @page { size: A4 landscape; margin: 1.5cm; }</style></head><body>
+  <div class="header"><div><div class="title">${isRtl ? 'قائمة التسجيلات' : 'Liste des inscriptions'}</div>
+    <div class="etab">${nomEtab || ''}</div>
+    <div style="font-size:9px;color:#666;margin-top:4px;">${anneeLabel || ''} · ${date}</div></div>
+    <div style="text-align:${isRtl ? 'left' : 'right'}">
+      <div>${eleves.length} ${isRtl ? 'طلب' : 'demandes'} · ${acceptes.length} ${isRtl ? 'مقبول' : 'acceptés'} · ${attente.length} ${isRtl ? 'انتظار' : 'en attente'}</div>
+    </div></div>
+  ${acceptes.length > 0 ? `<div class="section">${isRtl ? 'المقبولون' : 'Acceptés'} (${acceptes.length})</div>
+    <table><thead><tr><th>#</th>${champsVisibles.map(c => `<th ${arabStyle(c.label)}>${c.label}</th>`).join('')}
+    <th>${isRtl ? 'السن' : 'Âge'}</th><th>${isRtl ? 'المستوى' : 'Niveau'}</th>${allocation ? `<th>${isRtl ? 'الصّالة' : 'Salle'}</th>` : ''}</tr></thead>
+    <tbody>${tableRows(acceptes)}</tbody></table>` : ''}
+  ${attente.length > 0 ? `<div class="section">${isRtl ? 'قائمة الانتظار' : "Liste d'attente"} (${attente.length})</div>
+    <table><thead><tr><th>#</th>${champsVisibles.map(c => `<th ${arabStyle(c.label)}>${c.label}</th>`).join('')}
+    <th>${isRtl ? 'السن' : 'Âge'}</th><th>${isRtl ? 'المستوى' : 'Niveau'}</th></tr></thead>
+    <tbody>${tableRows(attente)}</tbody></table>` : ''}
+  <script>window.onload = function() { window.print(); }</script></body></html>`
+  const win = window.open('', '_blank')
+  win.document.write(html)
+  win.document.close()
+}
+
+export default function PageInscriptions({ lectureSeule, nomEtab, anneeLabel }) {
   const { t, langue } = useI18n()
-  const { effacerToutesInscriptions, creerSauvegarde } = useApp()
+  const { effacerToutesInscriptions, creerSauvegarde, eleves: elevesAll, config: configAll, allocation: allocationAll } = useApp()
   const toast2 = useToast()
   const [eleveAEditer, setEleveAEditer] = useState(null)
 
@@ -559,6 +609,12 @@ export default function PageInscriptions({ lectureSeule }) {
             setEleveAEditer(null)
           }}>
             🗑 {langue === 'ar' ? 'حذف الكل' : 'Effacer tout'}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => {
+            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée', 'error'); return }
+            imprimerPDF(configAll, elevesAll, allocationAll, nomEtab, anneeLabel, langue)
+          }}>
+            📄 {langue === 'ar' ? 'طباعة PDF' : 'Export PDF'}
           </button>
         </div>
       </div>

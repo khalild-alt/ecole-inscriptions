@@ -1,5 +1,4 @@
 // src/pages/PageExport.jsx
-import * as XLSX from 'xlsx'
 import { useApp } from '../store/appStore'
 import { useToast } from '../components/Toast'
 import { useI18n } from '../i18n/useI18n'
@@ -49,7 +48,7 @@ function exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te) {
 
   const ws1 = XLSX.utils.aoa_to_sheet([ligneEtab, [], headers, ...rows])
   ws1['!cols'] = headers.map(() => ({ wch: 20 }))
-  XLSX.utils.book_append_sheet(wb, ws1, te.acceptes_titre + ' + ' + te.attente_titre)
+  XLSX.utils.book_append_sheet(wb, ws1, 'Tous'.slice(0, 31))
 
   const acceptes = eleves.filter(e => e.statut === 'accepte')
   if (acceptes.length > 0) {
@@ -64,7 +63,7 @@ function exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te) {
     })
     const ws2 = XLSX.utils.aoa_to_sheet([ligneEtab, [], hA, ...rA])
     ws2['!cols'] = hA.map(() => ({ wch: 20 }))
-    XLSX.utils.book_append_sheet(wb, ws2, te.acceptes_titre)
+    XLSX.utils.book_append_sheet(wb, ws2, String(te.acceptes_titre || 'Acceptes').slice(0, 31))
   }
 
   const attente = eleves.filter(e => e.statut === 'liste_attente')
@@ -78,7 +77,7 @@ function exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te) {
     })
     const ws3 = XLSX.utils.aoa_to_sheet([ligneEtab, [], hB, ...rB])
     ws3['!cols'] = hB.map(() => ({ wch: 20 }))
-    XLSX.utils.book_append_sheet(wb, ws3, te.attente_titre)
+    XLSX.utils.book_append_sheet(wb, ws3, String(te.attente_titre || 'Attente').slice(0, 31))
   }
 
   if (allocation) {
@@ -93,7 +92,7 @@ function exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te) {
       })
     ]
     const ws4 = XLSX.utils.aoa_to_sheet(synth)
-    XLSX.utils.book_append_sheet(wb, ws4, te.synthese)
+    XLSX.utils.book_append_sheet(wb, ws4, String(te.synthese || 'Synthese').slice(0, 31))
   }
 
   const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')
@@ -217,12 +216,6 @@ export default function PageExport({ nomEtab, anneeLabel }) {
   const toast = useToast()
   const te = t.export
 
-  function handleExportExcel() {
-    if (eleves.length === 0) { toast(te.aucune_donnee, 'error'); return }
-    exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te)
-    toast('Export Excel généré', 'success')
-  }
-
   function handleExportPDF() {
     if (eleves.length === 0) { toast(te.aucune_donnee, 'error'); return }
     imprimerPDF(config, eleves, allocation, nomEtab, anneeLabel, te, langue)
@@ -251,14 +244,7 @@ export default function PageExport({ nomEtab, anneeLabel }) {
       {!allocation && <div className="alert alert-warning">{te.sans_allocation}</div>}
 
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <div className="card" style={{ flex: 1, minWidth: 260 }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📊</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>{te.titre_excel}</div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginBottom: 20 }}>{te.desc_excel}</div>
-          <button className="btn btn-success btn-lg" onClick={handleExportExcel} disabled={eleves.length === 0} style={{ width: '100%', justifyContent: 'center' }}>
-            {te.btn_excel}
-          </button>
-        </div>
+
         <div className="card" style={{ flex: 1, minWidth: 260 }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📄</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>{te.titre_pdf}</div>

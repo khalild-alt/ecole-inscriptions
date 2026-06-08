@@ -182,7 +182,7 @@ export default function App() {
           <main style={{ flex: 1 }}>
             {onglet === 'config_salles'    && <PageConfigSalles    lectureSeule={anneeArchivee || role === 'operateur'} />}
             {onglet === 'config_interface' && <PageConfigInterface  lectureSeule={anneeArchivee || role === 'operateur'} />}
-            {onglet === 'inscriptions'     && <PageInscriptions     lectureSeule={anneeArchivee} />}
+            {onglet === 'inscriptions'     && <PageInscriptions     lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.label} />}
             {onglet === 'allocation'       && <PageAllocation       lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.label} />}
             {onglet === 'export'           && <PageExport           nomEtab={nomEtab} anneeLabel={annee?.label} />}
             {onglet === 'restauration'    && <PageRestauration />}
