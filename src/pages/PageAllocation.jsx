@@ -147,7 +147,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
             <span style={{ direction: 'auto' }}>{nomSalleFull}</span>
           </div>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: 2 }}>
-            {elevesGroupe.length}/{classe.salle?.capacite} langue === 'ar' ? 'تلميذ' : 'élève's · {((elevesGroupe.length / (classe.salle?.capacite || 1)) * 100).toFixed(0)}%
+            {elevesGroupe.length}/{classe.salle?.capacite} langue === 'ar' ? 'تلاميذ' : 'élèves' · {((elevesGroupe.length / (classe.salle?.capacite || 1)) * 100).toFixed(0)}%
             {classe.salle?.capacite - elevesGroupe.length > 0 && ` · ${classe.salle.capacite - elevesGroupe.length} {langue === 'ar' ? 'مقعد شاغر' : 'place(s) libre(s)'}`}
           </div>
         </div>
@@ -173,11 +173,11 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           height: '100%',
           width: `${Math.min(100, (elevesGroupe.length / (classe.salle?.capacite || 1)) * 100)}%`,
           background: couleur.bg,
-          trlangue === 'ar' ? 'سنوات' : 'ans'ition: 'width 0.3s'
+          transition: 'width 0.3s'
         }} />
       </div>
 
-      {/* Liste des langue === 'ar' ? 'تلميذ' : 'élève's */}
+      {/* Liste des langue === 'ar' ? 'تلاميذ' : 'élèves' */}
       <div style={{ padding: '10px 16px' }}>
         <details>
           <summary style={{ cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6 }}>
@@ -383,7 +383,7 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
       ws[ref].s = { fill: { fgColor: { rgb: couleurXL }, patternType: 'solid' }, font: { color: { rgb: 'FFFFFFFF' }, bold: true, sz: 11 } }
       ws['!merges'] = ws['!merges'] || []
       ws['!merges'].push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: champsHeaders.length + 1 } })
-      rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + langue === 'ar' ? 'تلميذ' : 'élève's + vide
+      rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + langue === 'ar' ? 'تلاميذ' : 'élèves' + vide
     }
 
     const sheetName = r.label.replace(/[\\/*\[\]?:]/g, '').slice(0, 31)
@@ -440,7 +440,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   )
   const [calcul, setCalcul] = useState(false)
   const [modalEleve, setModalEleve] = useState(null) // { eleve, niveauActuel, classeActuelle }
-  // elevesHorsGroupe : langue === 'ar' ? 'تلميذ' : 'élève's retirés manuellement de tout groupe
+  // elevesHorsGroupe : langue === 'ar' ? 'تلاميذ' : 'élèves' retirés manuellement de tout groupe
   const [elevesHorsGroupe, setElevesHorsGroupe] = useState([])
 
   async function handleOptimiser() {
@@ -635,7 +635,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             <div className="card" style={{ border: '2px dashed var(--warning)' }}>
               <div className="card-title">🚫 Élèves slangue === 'ar' ? 'سنوات' : 'ans' groupe ({elevesHorsGroupe.length})</div>
               <div className="alert alert-warning" style={{ marginBottom: 12 }}>
-                Ces langue === 'ar' ? 'تلميذ' : 'élève's ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente.
+                Ces langue === 'ar' ? 'تلاميذ' : 'élèves' ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente.
               </div>
               <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
                 <thead>
