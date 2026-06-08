@@ -307,7 +307,10 @@ export function AppProvider({ children }) {
       dpn[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription))
     }
     console.log('MODE ALLOCATION:', config.modeAllocationDefaut)
+    console.log('DEMANDES PAR NIVEAU:', Object.entries(dpn).map(([k,v]) => k+':'+v.length).join(', '))
+    console.log('SALLES:', config.salles.map(s => s.nom+'='+s.capacite).join(', '))
     const { affectations } = optimiserAllocation(dpn, config.salles, config.modeAllocationDefaut || 'C')
+    console.log('AFFECTATIONS:', Object.entries(affectations).map(([k,v]) => k+': '+v.classes?.map(c => c.salle?.nom+'('+c.nbAcceptes+')').join('+')).join(' | '))
 
     // Calculer les statuts à partir des classes
     const statuts = {}
