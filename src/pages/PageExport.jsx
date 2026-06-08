@@ -99,116 +99,6 @@ function exporterExcel(config, eleves, allocation, nomEtab, anneeLabel, te) {
   XLSX.writeFile(wb, `inscriptions_${(nomEtab || '').replace(/\s+/g, '_')}_${anneeLabel || date}.xlsx`)
 }
 
-function imprimerPDF(config, eleves, allocation, nomEtab, anneeLabel, te, langue) {
-  const champsVisibles = getChampsVisibles(config)
-  const date = new Date().toLocaleDateString('fr-FR')
-  const acceptes = eleves.filter(e => e.statut === 'accepte')
-  const attente = eleves.filter(e => e.statut === 'liste_attente')
-  const isRtl = langue === 'ar'
-
-  const arabStyle = (str) => hasArabic(String(str || '')) ? `style="font-family:'Noto Sans Arabic',sans-serif;direction:rtl;text-align:right;"` : ''
-
-  const tableRows = (liste) => liste.map((e, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      ${champsVisibles.map(c => `<td ${arabStyle(e[c.id])}>${e[c.id] || '—'}</td>`).join('')}
-      <td>${e.age ?? '—'}</td>
-      <td ${arabStyle(config.reglesAge.find(r => r.niveauId === e.niveauId)?.label)}>${config.reglesAge.find(r => r.niveauId === e.niveauId)?.label || '—'}</td>
-      ${allocation ? `<td>${allocation.affectations[e.niveauId]?.salle?.nom || '—'}</td>` : ''}
-    </tr>
-  `).join('')
-
-  const html = `<!DOCTYPE html>
-<html dir="${isRtl ? 'rtl' : 'ltr'}">
-<head>
-  <meta charset="UTF-8">
-  <title>${nomEtab} — ${anneeLabel}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: ${isRtl ? "'Noto Sans Arabic'," : ''}Arial, sans-serif; font-size: 10px; color: #1a1a2e; padding: 20px; direction: ${isRtl ? 'rtl' : 'ltr'}; }
-    .header { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #3b4a2f; margin-bottom: 16px; }
-    .header-title { font-size: 16px; font-weight: bold; color: #3b4a2f; }
-    .etab { font-size: 13px; font-weight: 700; color: #c8401a; font-family: 'Noto Sans Arabic', Arial; }
-    .section-title { font-size: 13px; font-weight: bold; margin: 20px 0 8px; padding: 6px 10px; background: #3b4a2f; color: white; border-radius: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th { background: #3b4a2f; color: white; padding: 6px 8px; text-align: ${isRtl ? 'right' : 'left'}; font-size: 9px; }
-    td { padding: 5px 8px; border-bottom: 1px solid #eee; }
-    tr:nth-child(even) td { background: #f7f6f2; }
-    @page { size: A4 landscape; margin: 1.5cm; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="header-title">${te.titre}</div>
-      <div class="etab">${nomEtab || ''}</div>
-      <div style="font-size:9px;color:#666;margin-top:4px;">${te.annee} : ${anneeLabel || ''} · ${te.genere_le} ${date}</div>
-    </div>
-    <div style="text-align:${isRtl ? 'left' : 'right'}">
-      <div>${eleves.length} ${te.col_demandes} · ${acceptes.length} ${te.acceptes_titre} · ${attente.length} ${te.attente_titre}</div>
-      ${allocation ? `<div>${te.mode_label} : ${allocation.mode === 'B' ? te.mode_b : te.mode_a}</div>` : ''}
-    </div>
-  </div>
-
-  ${allocation ? `
-  <div class="section-title">${te.synthese}</div>
-  <table>
-    <thead><tr>
-      <th>${te.col_niveau}</th><th>${te.col_salle}</th><th>${te.col_demandes}</th>
-      <th>${te.col_acceptes}</th><th>${te.col_libres}</th><th>${te.col_attente}</th><th>${te.col_taux}</th>
-    </tr></thead>
-    <tbody>
-      ${config.reglesAge.map(r => {
-        const res = allocation.affectations[r.niveauId]
-        if (!res) return ''
-        const att = eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'liste_attente').length
-        return `<tr>
-          <td ${arabStyle(r.label)}>${r.label}</td>
-          <td>${res.salle?.nom || '—'}</td>
-          <td>${res.nbDemandes}</td>
-          <td><strong>${res.acceptes}</strong></td>
-          <td>${res.salle ? res.placesLibres : '—'}</td>
-          <td>${att}</td>
-          <td>${res.salle ? res.tauxRemplissage + '%' : '—'}</td>
-        </tr>`
-      }).join('')}
-    </tbody>
-  </table>
-  ` : ''}
-
-  ${acceptes.length > 0 ? `
-  <div class="section-title">${te.acceptes_titre} (${acceptes.length})</div>
-  <table>
-    <thead><tr>
-      <th>#</th>
-      ${champsVisibles.map(c => `<th ${arabStyle(c.label)}>${c.label}</th>`).join('')}
-      <th>${te.col_age}</th><th>${te.col_niveau}</th>${allocation ? `<th>${te.col_salle}</th>` : ''}
-    </tr></thead>
-    <tbody>${tableRows(acceptes)}</tbody>
-  </table>
-  ` : ''}
-
-  ${attente.length > 0 ? `
-  <div class="section-title">${te.attente_titre} (${attente.length})</div>
-  <table>
-    <thead><tr>
-      <th>#</th>
-      ${champsVisibles.map(c => `<th ${arabStyle(c.label)}>${c.label}</th>`).join('')}
-      <th>${te.col_age}</th><th>${te.col_niveau}</th>
-    </tr></thead>
-    <tbody>${tableRows(attente)}</tbody>
-  </table>
-  ` : ''}
-
-  <script>window.onload = function() { window.print(); }</script>
-</body>
-</html>`
-
-  const win = window.open('', '_blank')
-  win.document.write(html)
-  win.document.close()
-}
 
 export default function PageExport({ nomEtab, anneeLabel }) {
   const { config, eleves, allocation } = useApp()
@@ -216,10 +106,7 @@ export default function PageExport({ nomEtab, anneeLabel }) {
   const toast = useToast()
   const te = t.export
 
-  function handleExportPDF() {
-    if (eleves.length === 0) { toast(te.aucune_donnee, 'error'); return }
-    imprimerPDF(config, eleves, allocation, nomEtab, anneeLabel, te, langue)
-  }
+
 
   const nbAcceptes = eleves.filter(e => e.statut === 'accepte').length
   const nbAttente = eleves.filter(e => e.statut === 'liste_attente').length
@@ -245,14 +132,7 @@ export default function PageExport({ nomEtab, anneeLabel }) {
 
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
 
-        <div className="card" style={{ flex: 1, minWidth: 260 }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📄</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>{te.titre_pdf}</div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginBottom: 20 }}>{te.desc_pdf}</div>
-          <button className="btn btn-primary btn-lg" onClick={handleExportPDF} disabled={eleves.length === 0} style={{ width: '100%', justifyContent: 'center' }}>
-            {te.btn_pdf}
-          </button>
-        </div>
+
       </div>
 
       {eleves.length > 0 && (
