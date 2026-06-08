@@ -432,7 +432,7 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
           {config.reglesAge.map(r => <option key={r.niveauId} value={r.niveauId}>{r.label}</option>)}
         </select>
         <button className="btn btn-success btn-sm" onClick={exporterExcel} disabled={eleves.length === 0}>
-          📊 Export Excel
+          📊 {langue === 'ar' ? 'تصدير Excel' : 'Export Excel'}
         </button>
       </div>
       {elevesFiltrés.length === 0 ? (

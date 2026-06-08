@@ -37,8 +37,8 @@ function nomSalle(salle) {
   return salle.nomComplet ? `${salle.nom} — ${salle.nomComplet}` : salle.nom
 }
 
-// ── Modal pour ajouter/déplacer un élève vers un groupe ─────────────────────
-function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onClose, terminologie }) {
+// ── Modal pour ajouter/déplacer un langue === 'ar' ? 'تلميذ' : 'élève' vers un groupe ─────────────────────
+function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onClose, terminologie, langue }) {
   const [niveauCible, setNiveauCible] = useState('')
   const [classeCible, setClasseCible] = useState('')
 
@@ -48,7 +48,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
     ? allocation.affectations[niveauCible].classes
     : []
 
-  const terme = terminologie?.groupe || 'Groupe'
+  const terme = terminologie?.groupe || langue === 'ar' ? 'الفوج' : 'Groupe'
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -57,7 +57,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
           Ajouter : {eleve.prenom} {eleve.nom}
         </h3>
         <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginBottom: 20 }}>
-          Âge : <strong>{eleve.age} ans</strong> — niveaux compatibles : {niveauxCompatibles.map(r => r.label).join(', ')}
+          Âge : <strong>{eleve.age} langue === 'ar' ? 'سنوات' : 'ans'</strong> — niveaux compatibles : {niveauxCompatibles.map(r => r.label).join(', ')}
         </div>
 
         <div className="form-group">
@@ -74,7 +74,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
           <div className="form-group">
             <label className="form-label">{terme} de destination</label>
             {classesDisponibles.length === 0 ? (
-              <div className="alert alert-warning">Aucun groupe dans ce niveau.</div>
+              <div className="alert alert-warning">Aucun groupe dlangue === 'ar' ? 'سنوات' : 'ans' ce niveau.</div>
             ) : (
               <select className="form-input" value={classeCible} onChange={e => setClasseCible(e.target.value)}>
                 <option value="">— Choisir —</option>
@@ -96,7 +96,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
           const cls = classesDisponibles.find(c => c.classeId === classeCible)
           const nbActuels = cls ? eleves.filter(e => cls.elevesIds?.includes(e.id)).length : 0
           if (cls && nbActuels >= cls.salle.capacite) {
-            return <div className="alert alert-warning">⚠ Ce groupe est plein ({nbActuels}/{cls.salle.capacite}). L'élève sera ajouté en dépassement.</div>
+            return <div className="alert alert-warning">⚠ Ce groupe est plein ({nbActuels}/{cls.salle.capacite}). L'langue === 'ar' ? 'تلميذ' : 'élève' sera ajouté en dépassement.</div>
           }
           return null
         })()}
@@ -104,7 +104,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button className="btn btn-primary" disabled={!classeCible}
             onClick={() => onConfirm(niveauCible, classeCible)}>
-            ✓ Ajouter dans ce groupe
+            ✓ Ajouter dlangue === 'ar' ? 'سنوات' : 'ans' ce groupe
           </button>
           <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
         </div>
@@ -116,7 +116,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
 // ── Carte d'un groupe ────────────────────────────────────────────────────────
 function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule }) {
   const taux = parseFloat(classe.tauxRemplissage)
-  const terme = terminologie?.groupe || 'Groupe'
+  const terme = terminologie?.groupe || langue === 'ar' ? 'الفوج' : 'Groupe'
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const elevesGroupe = eleves.filter(e => classe.elevesIds && classe.elevesIds.includes(e.id))
   // Libellé bilingue : "Année 1 — فوج / Groupe 1 — S3 — Nom salle"
@@ -139,7 +139,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
             <span style={{ direction: 'auto' }}>{niveauLabel}</span>
             <span style={{ opacity: 0.6 }}>—</span>
             <span>
-              <span style={{ fontFamily: "'Noto Sans Arabic', sans-serif", direction: 'rtl' }}>فوج {classe.classeNum}</span>
+              <span style={{ fontFamily: "'Noto Slangue === 'ar' ? 'سنوات' : 'ans' Arabic', slangue === 'ar' ? 'سنوات' : 'ans'-serif", direction: 'rtl' }}>فوج {classe.classeNum}</span>
               <span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>
               <span>{terme} {classe.classeNum}</span>
             </span>
@@ -147,8 +147,8 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
             <span style={{ direction: 'auto' }}>{nomSalleFull}</span>
           </div>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: 2 }}>
-            {elevesGroupe.length}/{classe.salle?.capacite} élèves · {((elevesGroupe.length / (classe.salle?.capacite || 1)) * 100).toFixed(0)}%
-            {classe.salle?.capacite - elevesGroupe.length > 0 && ` · ${classe.salle.capacite - elevesGroupe.length} place(s) libre(s)`}
+            {elevesGroupe.length}/{classe.salle?.capacite} langue === 'ar' ? 'تلميذ' : 'élève's · {((elevesGroupe.length / (classe.salle?.capacite || 1)) * 100).toFixed(0)}%
+            {classe.salle?.capacite - elevesGroupe.length > 0 && ` · ${classe.salle.capacite - elevesGroupe.length} {langue === 'ar' ? 'مقعد شاغر' : 'place(s) libre(s)'}`}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -158,7 +158,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
               style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.78rem' }}
               onClick={() => onFiger(classe.classeId, !fige)}
             >
-              {fige ? '🔓 Libérer' : '🔒 Figer'}
+              {fige ? langue === 'ar' ? '🔓 تحرير' : '🔓 Libérer' : langue === 'ar' ? '🔒 تثبيت' : '🔒 Figer'}
             </button>
           )}
           <div style={{ textAlign: 'right', minWidth: 48 }}>
@@ -173,15 +173,15 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           height: '100%',
           width: `${Math.min(100, (elevesGroupe.length / (classe.salle?.capacite || 1)) * 100)}%`,
           background: couleur.bg,
-          transition: 'width 0.3s'
+          trlangue === 'ar' ? 'سنوات' : 'ans'ition: 'width 0.3s'
         }} />
       </div>
 
-      {/* Liste des élèves */}
+      {/* Liste des langue === 'ar' ? 'تلميذ' : 'élève's */}
       <div style={{ padding: '10px 16px' }}>
         <details>
           <summary style={{ cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6 }}>
-            👥 {elevesGroupe.length} élève{elevesGroupe.length > 1 ? 's' : ''} ▾
+            👥 {elevesGroupe.length} langue === 'ar' ? 'تلميذ' : 'élève'{elevesGroupe.length > 1 ? 's' : ''} ▾
           </summary>
           <div style={{ overflowX: 'auto', maxHeight: 260, overflowY: 'auto' }}>
             <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
@@ -202,7 +202,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
                     {config.champs.filter(c => c.type !== 'computed').map(c => (
                       <td key={c.id} style={{ padding: '5px 8px', direction: 'auto' }}>{e[c.id] || '—'}</td>
                     ))}
-                    <td style={{ padding: '5px 8px' }}><strong>{e.age}</strong> ans</td>
+                    <td style={{ padding: '5px 8px' }}><strong>{e.age}</strong> langue === 'ar' ? 'سنوات' : 'ans'</td>
                     {!lectureSeule && (
                       <td style={{ padding: '5px 8px' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
@@ -210,7 +210,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
                             onClick={() => onOuvrirModal(e, niveauId, classe.classeId)}>↔</button>
                           <button className="btn btn-danger btn-sm" style={{ fontSize: '0.72rem' }}
                             onClick={() => onRetirer(e.id, classe.classeId, niveauId)}
-                            title="Retirer de ce groupe">✕</button>
+                            title=langue === 'ar' ? 'إزالة من القسم' : 'Retirer de ce groupe'>✕</button>
                         </div>
                       </td>
                     )}
@@ -240,13 +240,13 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
             {label}
           </span>
           <span style={{ fontSize: '0.85rem', color: couleur.text }}>
-            {res.classes.length} {terminologie?.groupe || 'groupe'}{res.classes.length > 1 ? 's' : ''}
+            {res.classes.length} {terminologie?.groupe || 'langue === 'ar' ? 'مجموعة' : 'groupe'}{res.classes.length > 1 ? 's' : ''}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: '0.85rem', flexWrap: 'wrap' }}>
-          <span style={{ color: couleur.text }}>{elevesNiveau.length} demandes</span>
-          <span style={{ color: 'var(--success)', fontWeight: 700 }}>✓ {res.nbAcceptes} acceptés</span>
-          {enAttente.length > 0 && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>⏳ {enAttente.length} en attente</span>}
+          <span style={{ color: couleur.text }}>{elevesNiveau.length} langue === 'ar' ? 'طلبات' : 'demandes'</span>
+          <span style={{ color: 'var(--success)', fontWeight: 700 }}>✓ {res.nbAcceptes} langue === 'ar' ? 'مقبولون' : 'acceptés'</span>
+          {enAttente.length > 0 && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>⏳ {enAttente.length} langue === 'ar' ? 'في الانتظار' : 'en attente'</span>}
         </div>
       </div>
 
@@ -272,7 +272,7 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
         {enAttente.length > 0 && (
           <details style={{ marginTop: 8 }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 600 }}>
-              ⏳ Liste d'attente : {enAttente.length} élève{enAttente.length > 1 ? 's' : ''} ▾
+              ⏳ langue === 'ar' ? 'قائمة الانتظار :' : langue === 'ar' ? 'قائمة الانتظار :' : "Liste d'attente :" {enAttente.length} langue === 'ar' ? 'تلميذ' : 'élève'{enAttente.length > 1 ? 's' : ''} ▾
             </summary>
             <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 6 }}>
               <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
@@ -293,7 +293,7 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
                       {config.champs.filter(c => c.type !== 'computed').map(c => (
                         <td key={c.id} style={{ padding: '4px 8px', direction: 'auto' }}>{e[c.id] || '—'}</td>
                       ))}
-                      <td style={{ padding: '4px 8px' }}>{e.age} ans</td>
+                      <td style={{ padding: '4px 8px' }}>{e.age} langue === 'ar' ? 'سنوات' : 'ans'</td>
                       {!lectureSeule && (
                         <td style={{ padding: '4px 8px' }}>
                           <button className="btn btn-success btn-sm" style={{ fontSize: '0.72rem' }}
@@ -315,7 +315,7 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
 // ── Export Excel allocation ─────────────────────────────────────────────────
 function exporterAllocationExcel(allocation, eleves, config, terminologie) {
   const wb = XLSX.utils.book_new()
-  const terme = terminologie?.groupe || 'Groupe'
+  const terme = terminologie?.groupe || langue === 'ar' ? 'الفوج' : 'Groupe'
   const champs = config.champs.filter(c => c.type !== 'computed')
   const champsHeaders = champs.map(c => c.label)
 
@@ -383,16 +383,16 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
       ws[ref].s = { fill: { fgColor: { rgb: couleurXL }, patternType: 'solid' }, font: { color: { rgb: 'FFFFFFFF' }, bold: true, sz: 11 } }
       ws['!merges'] = ws['!merges'] || []
       ws['!merges'].push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: champsHeaders.length + 1 } })
-      rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + élèves + vide
+      rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + langue === 'ar' ? 'تلميذ' : 'élève's + vide
     }
 
     const sheetName = r.label.replace(/[\\/*\[\]?:]/g, '').slice(0, 31)
-    XLSX.utils.book_append_sheet(wb, ws, sheetName || ('Niveau' + r.niveauId))
+    XLSX.utils.book_append_sheet(wb, ws, sheetName || (langue === 'ar' ? 'المستوى' : 'Niveau' + r.niveauId))
   }
 
   // ── Feuille synthèse ──
   const synthRows = [
-    ['Niveau', terme, 'Salle', 'Nom complet', 'Capacité', 'Élèves', 'Places libres', 'Remplissage']
+    [langue === 'ar' ? 'المستوى' : 'Niveau', terme, langue === 'ar' ? 'الصّالة' : 'Salle', langue === 'ar' ? 'الاسم الكامل' : 'Nom complet', langue === 'ar' ? 'الطاقة' : 'Capacité', langue === 'ar' ? 'التلاميذ' : 'Élèves', langue === 'ar' ? 'مقاعد شاغرة' : 'Places libres', langue === 'ar' ? 'الإشغال' : 'Remplissage']
   ]
   for (const r of config.reglesAge) {
     const resRaw = allocation.affectations[r.niveauId]
@@ -409,19 +409,19 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
   }
   const wsSynth = XLSX.utils.aoa_to_sheet(synthRows)
   wsSynth['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }]
-  XLSX.utils.book_append_sheet(wb, wsSynth, 'Synthèse')
+  XLSX.utils.book_append_sheet(wb, wsSynth, langue === 'ar' ? 'ملخص التوزيع' : 'Synthèse')
 
   // ── Feuille non-alloués ──
   const nonAlloues = eleves.filter(e => e.statut === 'liste_attente')
   if (nonAlloues.length > 0) {
-    const naRows = [['#', ...champsHeaders, 'Âge', 'Niveau']]
+    const naRows = [['#', ...champsHeaders, 'Âge', langue === 'ar' ? 'المستوى' : 'Niveau']]
     nonAlloues.forEach((e, idx) => {
       const niv = config.reglesAge.find(r => r.niveauId === e.niveauId)
       naRows.push([idx + 1, ...champs.map(c => e[c.id] || ''), e.age || '', niv?.label || '—'])
     })
     const wsNA = XLSX.utils.aoa_to_sheet(naRows)
     wsNA['!cols'] = [{ wch: 5 }, ...champsHeaders.map(() => ({ wch: 18 })), { wch: 8 }, { wch: 14 }]
-    XLSX.utils.book_append_sheet(wb, wsNA, 'Non alloués')
+    XLSX.utils.book_append_sheet(wb, wsNA, langue === 'ar' ? 'غير موزعين' : 'Non alloués')
   }
 
   const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')
@@ -433,23 +433,23 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const { config, eleves, setEleves, allocation, setAllocation, lancerOptimisation, annee } = useApp()
   const { langue } = useI18n()
   const toast = useToast()
-  const terminologie = config.terminologie || DEFAULT_CONFIG.terminologie || { groupe: 'Groupe', annee: 'Année' }
+  const terminologie = config.terminologie || DEFAULT_CONFIG.terminologie || { groupe: langue === 'ar' ? 'الفوج' : 'Groupe', annee: 'Année' }
 
   const [groupesFiges, setGroupesFiges] = useState(() =>
     allocation?.groupesFiges ? new Set(allocation.groupesFiges) : new Set()
   )
   const [calcul, setCalcul] = useState(false)
   const [modalEleve, setModalEleve] = useState(null) // { eleve, niveauActuel, classeActuelle }
-  // elevesHorsGroupe : élèves retirés manuellement de tout groupe
+  // elevesHorsGroupe : langue === 'ar' ? 'تلميذ' : 'élève's retirés manuellement de tout groupe
   const [elevesHorsGroupe, setElevesHorsGroupe] = useState([])
 
   async function handleOptimiser() {
-    if (eleves.length === 0) { toast('Aucune inscription à traiter', 'error'); return }
+    if (eleves.length === 0) { toast(langue === 'ar' ? 'لا توجد تسجيلات' : 'Aucune inscription à traiter', 'error'); return }
     setCalcul(true)
     setElevesHorsGroupe([])
     try {
       await lancerOptimisation()
-      toast('Allocation calculée', 'success')
+      toast(langue === 'ar' ? 'تم حساب التوزيع' : 'Allocation calculée', 'success')
     } catch(e) {
       toast('Erreur : ' + e.message, 'error')
     }
@@ -479,7 +479,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     toast(figer ? '🔒 Groupe figé' : '🔓 Groupe libéré', 'info')
   }
 
-  // ── Retirer un élève d'un groupe → hors groupe ───────────────────────────
+  // ── Retirer un langue === 'ar' ? 'تلميذ' : 'élève' d'un groupe → hors groupe ───────────────────────────
   async function handleRetirer(eleveId, classeId, niveauId) {
     const aff = JSON.parse(JSON.stringify(allocation.affectations))
     for (const [nId, res] of Object.entries(aff)) {
@@ -499,10 +499,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     const eleve = eleves.find(e => e.id === eleveId)
     if (eleve) setElevesHorsGroupe(prev => [...prev, eleve])
     await sauvegarderAllocation(aff, null)
-    toast('Élève retiré du groupe', 'info')
+    toast('Élève retiré du langue === 'ar' ? 'مجموعة' : 'groupe', 'info')
   }
 
-  // ── Ajouter/déplacer un élève vers un groupe ─────────────────────────────
+  // ── Ajouter/déplacer un langue === 'ar' ? 'تلميذ' : 'élève' vers un groupe ─────────────────────────────
   async function confirmerAjout(niveauCible, classeIdCible) {
     if (!modalEleve || !allocation) return
     const { eleve, classeActuelle } = modalEleve
@@ -515,7 +515,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
       }
     }
 
-    // Ajouter dans le groupe cible
+    // Ajouter dlangue === 'ar' ? 'سنوات' : 'ans' le groupe cible
     const clsCible = aff[niveauCible]?.classes?.find(c => c.classeId === classeIdCible)
     if (clsCible) {
       if (!clsCible.elevesIds) clsCible.elevesIds = []
@@ -535,7 +535,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     setElevesHorsGroupe(prev => prev.filter(e => e.id !== eleve.id))
     await sauvegarderAllocation(aff, null)
     setModalEleve(null)
-    toast(`${eleve.prenom} ${eleve.nom} ajouté au groupe`, 'success')
+    toast(langue === 'ar' ? `تمت إضافة ${eleve.prenom} ${eleve.nom} إلى القسم` : `${eleve.prenom} ${eleve.nom} ajouté au groupe`, 'success')
   }
 
   // Calculs stats
@@ -566,7 +566,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
 
   return (
     <div className="page">
-      <h2 className="page-title">Allocation des salles</h2>
+      <h2 className="page-title">{langue === 'ar' ? 'توزيع الأقسام' : langue === 'ar' ? 'توزيع الأقسام' : 'Allocation des salles'}</h2>
 
       {!lectureSeule && (
         <div className="card">
@@ -587,7 +587,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           {/* Stats globales */}
           <div className="stats-row">
             <div className="stat-card"><div className="stat-value">{totalEleves}</div><div className="stat-label">Demandes totales</div></div>
-            <div className="stat-card success"><div className="stat-value">{totalAcceptes}</div><div className="stat-label">Élèves acceptés</div></div>
+            <div className="stat-card success"><div className="stat-value">{totalAcceptes}</div><div className="stat-label">Élèves langue === 'ar' ? 'مقبولون' : 'acceptés'</div></div>
             <div className="stat-card warning"><div className="stat-value">{totalAttente}</div><div className="stat-label">Liste d'attente</div></div>
             <div className="stat-card info"><div className="stat-value">{tauxGlobal}%</div><div className="stat-label">Remplissage global</div></div>
             <div className="stat-card neutral"><div className="stat-value">{totalCapacite}</div><div className="stat-label">Capacité totale</div></div>
@@ -595,10 +595,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
 
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-              Calculé le {new Date(allocation.date).toLocaleString('fr-FR')}
+              {langue === 'ar' ? 'تم الحساب بتاريخ' : langue === 'ar' ? 'تم الحساب بتاريخ' : 'Calculé le'} {new Date(allocation.date).toLocaleString('fr-FR')}
             </span>
             <button className="btn btn-success" onClick={() => exporterAllocationExcel(allocation, eleves, config, terminologie)}>
-              📊 Exporter le résultat (Excel)
+              📊 {langue === 'ar' ? 'تصدير النتيجة (Excel)' : langue === 'ar' ? 'تصدير النتيجة (Excel)' : 'Exporter le résultat (Excel)'}
             </button>
           </div>
 
@@ -625,16 +625,17 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                 groupesFiges={groupesFiges} onFiger={handleFiger}
                 onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
                 onRetirer={handleRetirer}
-                lectureSeule={lectureSeule} />
+                lectureSeule={lectureSeule}
+                langue={langue} />
             )
           })}
 
           {/* Élèves hors groupe */}
           {elevesHorsGroupe.length > 0 && (
             <div className="card" style={{ border: '2px dashed var(--warning)' }}>
-              <div className="card-title">🚫 Élèves sans groupe ({elevesHorsGroupe.length})</div>
+              <div className="card-title">🚫 Élèves slangue === 'ar' ? 'سنوات' : 'ans' groupe ({elevesHorsGroupe.length})</div>
               <div className="alert alert-warning" style={{ marginBottom: 12 }}>
-                Ces élèves ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente.
+                Ces langue === 'ar' ? 'تلميذ' : 'élève's ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente.
               </div>
               <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
                 <thead>
@@ -658,7 +659,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                         {config.champs.filter(ch => ch.type !== 'computed').map(ch => (
                           <td key={ch.id} style={{ padding: '6px 10px', direction: 'auto' }}>{e[ch.id] || '—'}</td>
                         ))}
-                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> ans</td>
+                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> langue === 'ar' ? 'سنوات' : 'ans'</td>
                         <td style={{ padding: '6px 10px' }}>
                           {niveauCompat && <span style={{ background: c.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 700, direction: 'auto' }}>{niveauCompat.label}</span>}
                         </td>
@@ -702,11 +703,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                           {idx === 0 && (
                             <td rowSpan={res.classes.length}>
                               <span style={{ background: couleur.bg, color: 'white', padding: '3px 12px', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', direction: 'auto' }}>{r.label}</span>
-                              {res.nbAttente > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente} en attente</div>}
+                              {res.nbAttente > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente} langue === 'ar' ? 'في الانتظار' : 'en attente'</div>}
                             </td>
                           )}
                           <td style={{ fontWeight: 600 }}>
-                          <span style={{ fontFamily: "'Noto Sans Arabic', sans-serif" }}>فوج {cls.classeNum}</span>
+                          <span style={{ fontFamily: "'Noto Slangue === 'ar' ? 'سنوات' : 'ans' Arabic', slangue === 'ar' ? 'سنوات' : 'ans'-serif" }}>فوج {cls.classeNum}</span>
                           <span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>
                           <span>{terminologie.groupe} {cls.classeNum}</span>
                         </td>
@@ -733,7 +734,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>📊</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 10 }}>Aucune allocation calculée</div>
           <div style={{ fontSize: '0.9rem' }}>
-            {eleves.length === 0 ? 'Commencez par saisir des inscriptions, puis lancez le calcul.' : `${eleves.length} inscription(s) en attente. Cliquez sur "Calculer l'allocation".`}
+            {eleves.length === 0 ? langue === 'ar' ? 'ابدأ بإدخال التسجيلات ثم أطلق الحساب.' : 'Commencez par saisir des inscriptions, puis lancez le calcul.' : `${eleves.length} inscription(s) langue === 'ar' ? 'في الانتظار' : 'en attente'. Cliquez sur langue === 'ar' ? 'حساب التوزيع' : "Calculer l'allocation".`}
           </div>
         </div>
       )}
@@ -748,6 +749,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           onConfirm={confirmerAjout}
           onClose={() => setModalEleve(null)}
           terminologie={terminologie}
+          langue={langue}
         />
       )}
     </div>
