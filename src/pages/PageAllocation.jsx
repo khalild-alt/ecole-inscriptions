@@ -1,5 +1,6 @@
 // src/pages/PageAllocation.jsx
 import { useState, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import { useApp, DEFAULT_CONFIG } from '../store/appStore'
 import { useToast } from '../components/Toast'
 import { useI18n } from '../i18n/useI18n'
@@ -288,6 +289,124 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
   )
 }
 
+// ── Export Excel allocation ─────────────────────────────────────────────────
+function exporterAllocationExcel(allocation, eleves, config, terminologie) {
+  const wb = XLSX.utils.book_new()
+  const terme = terminologie?.groupe || 'Groupe'
+  const champs = config.champs.filter(c => c.type !== 'computed')
+  const champsHeaders = champs.map(c => c.label)
+
+  // Couleurs Excel par niveau (ARGB)
+  const COULEURS_XL = {
+    annee1: 'FF1a5fa0',
+    annee2: 'FF2d7a4f',
+    annee3: 'FFb07d1a',
+    annee4: 'FF6b21a8',
+  }
+  const DEFAULT_XL = 'FF374151'
+
+  function styleCellule(ws, ref, bgColor, bold = false) {
+    if (!ws[ref]) return
+    ws[ref].s = {
+      fill: { fgColor: { rgb: bgColor }, patternType: 'solid' },
+      font: { color: { rgb: 'FFFFFFFF' }, bold, name: 'Arial', sz: 10 },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    }
+  }
+
+  function styleLigne(ws, row, nbCols, bgColor, textColor = 'FF000000') {
+    for (let c = 0; c < nbCols; c++) {
+      const ref = XLSX.utils.encode_cell({ r: row, c })
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' }
+      ws[ref].s = {
+        fill: { fgColor: { rgb: bgColor.replace('#','FF') }, patternType: 'solid' },
+        font: { color: { rgb: textColor }, name: 'Arial', sz: 10 },
+        alignment: { wrapText: true },
+        border: { bottom: { style: 'thin', color: { rgb: 'FFdddddd' } } }
+      }
+    }
+  }
+
+  // ── Feuille par niveau ──
+  for (const r of config.reglesAge) {
+    const resRaw = allocation.affectations[r.niveauId]
+    if (!resRaw) continue
+    const res = resRaw.classes ? resRaw : { ...resRaw, classes: resRaw.salle ? [{ classeId: r.niveauId+'_c1', classeNum: 1, salle: resRaw.salle, elevesIds: eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'accepte').map(e => e.id) }] : [] }
+
+    const couleurXL = COULEURS_XL[r.niveauId] || DEFAULT_XL
+    const couleurLight = couleurXL.replace(/^FF/, 'FFe') // approx
+    const rows = []
+
+    for (const cls of res.classes) {
+      const elevesGroupe = eleves.filter(e => cls.elevesIds?.includes(e.id))
+      // En-tête du groupe
+      const titreGroupe = [`${r.label} — ${terme} ${cls.classeNum} — ${cls.salle?.nom || ''}${cls.salle?.nomComplet ? ' — ' + cls.salle.nomComplet : ''} (${elevesGroupe.length}/${cls.salle?.capacite || '?'})`]
+      rows.push(titreGroupe)
+      // En-tête colonnes
+      rows.push(['#', ...champsHeaders, 'Âge'])
+      // Élèves
+      elevesGroupe.forEach((e, idx) => {
+        rows.push([idx + 1, ...champs.map(c => e[c.id] || ''), e.age || ''])
+      })
+      rows.push([]) // Ligne vide entre groupes
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    ws['!cols'] = [{ wch: 5 }, ...champsHeaders.map(() => ({ wch: 18 })), { wch: 8 }]
+
+    // Colorier les en-têtes de groupe
+    let rowIdx = 0
+    for (const cls of res.classes) {
+      const elevesGroupe = eleves.filter(e => cls.elevesIds?.includes(e.id))
+      const ref = XLSX.utils.encode_cell({ r: rowIdx, c: 0 })
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' }
+      ws[ref].s = { fill: { fgColor: { rgb: couleurXL }, patternType: 'solid' }, font: { color: { rgb: 'FFFFFFFF' }, bold: true, sz: 11 } }
+      ws['!merges'] = ws['!merges'] || []
+      ws['!merges'].push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: champsHeaders.length + 1 } })
+      rowIdx += 2 + elevesGroupe.length + 1 // titre + entête + élèves + vide
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, r.label.slice(0, 31))
+  }
+
+  // ── Feuille synthèse ──
+  const synthRows = [
+    ['Niveau', terme, 'Salle', 'Nom complet', 'Capacité', 'Élèves', 'Places libres', 'Remplissage']
+  ]
+  for (const r of config.reglesAge) {
+    const resRaw = allocation.affectations[r.niveauId]
+    if (!resRaw) continue
+    const res = resRaw.classes ? resRaw : { ...resRaw, classes: resRaw.salle ? [{ classeId: r.niveauId+'_c1', classeNum: 1, salle: resRaw.salle, elevesIds: eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'accepte').map(e => e.id) }] : [] }
+    for (const cls of res.classes) {
+      const nbEleves = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
+      const cap = cls.salle?.capacite || 0
+      synthRows.push([
+        r.label, `${terme} ${cls.classeNum}`, cls.salle?.nom || '—', cls.salle?.nomComplet || '—',
+        cap, nbEleves, Math.max(0, cap - nbEleves), cap > 0 ? ((nbEleves / cap) * 100).toFixed(0) + '%' : '—'
+      ])
+    }
+  }
+  const wsSynth = XLSX.utils.aoa_to_sheet(synthRows)
+  wsSynth['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }]
+  XLSX.utils.book_append_sheet(wb, wsSynth, 'Synthèse')
+
+  // ── Feuille non-alloués ──
+  const nonAlloues = eleves.filter(e => e.statut === 'liste_attente')
+  if (nonAlloues.length > 0) {
+    const naRows = [['#', ...champsHeaders, 'Âge', 'Niveau']]
+    nonAlloues.forEach((e, idx) => {
+      const niv = config.reglesAge.find(r => r.niveauId === e.niveauId)
+      naRows.push([idx + 1, ...champs.map(c => e[c.id] || ''), e.age || '', niv?.label || '—'])
+    })
+    const wsNA = XLSX.utils.aoa_to_sheet(naRows)
+    wsNA['!cols'] = [{ wch: 5 }, ...champsHeaders.map(() => ({ wch: 18 })), { wch: 8 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, wsNA, 'Non alloués')
+  }
+
+  const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')
+  XLSX.writeFile(wb, `allocation_${date}.xlsx`)
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const { config, eleves, setEleves, allocation, setAllocation, lancerOptimisation, annee } = useApp()
@@ -452,8 +571,13 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             <div className="stat-card neutral"><div className="stat-value">{totalCapacite}</div><div className="stat-label">Capacité totale</div></div>
           </div>
 
-          <div style={{ marginBottom: 16, fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-            Calculé le {new Date(allocation.date).toLocaleString('fr-FR')}
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
+              Calculé le {new Date(allocation.date).toLocaleString('fr-FR')}
+            </span>
+            <button className="btn btn-success" onClick={() => exporterAllocationExcel(allocation, eleves, config, terminologie)}>
+              📊 Exporter le résultat (Excel)
+            </button>
           </div>
 
           {/* Légende couleurs */}
