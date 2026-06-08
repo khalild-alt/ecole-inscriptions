@@ -634,14 +634,14 @@ export default function PageInscriptions({ lectureSeule, nomEtab, anneeLabel }) 
             🗑 {langue === 'ar' ? 'حذف الكل' : 'Effacer tout'}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => {
-            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée', 'error'); return }
+            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée à exporter', 'error'); return }
             exporterExcelInscriptions(configAll, elevesAll, allocationAll, nomEtab, anneeLabel, langue)
-            toast2(langue === 'ar' ? 'تم التصدير' : 'Export Excel généré', 'success')
+            toast2(langue === 'ar' ? '✓ تم تصدير Excel' : '✓ Export Excel généré', 'success')
           }}>
             📊 {langue === 'ar' ? 'تصدير Excel' : 'Export Excel'}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => {
-            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée', 'error'); return }
+            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée à exporter', 'error'); return }
             imprimerPDF(configAll, elevesAll, allocationAll, nomEtab, anneeLabel, langue)
           }}>
             📄 {langue === 'ar' ? 'طباعة PDF' : 'Export PDF'}

@@ -217,7 +217,7 @@ export default {
     btn_excel:        '📥 تصدير Excel',
     btn_pdf:          '📥 طباعة PDF',
     titre_excel:      'تصدير Excel',
-    titre_pdf:        'تصدير PDF',
+    titre_pdf:        'طباعة PDF',
     desc_excel:       'ملف .xlsx يحتوي على: كل التلاميذ، المقبولون، قائمة الانتظار، الملخص.',
     desc_pdf:         'يفتح نافذة طباعة. يدعم النص العربي.',
     aucune_donnee:    'لا توجد بيانات للتصدير',
