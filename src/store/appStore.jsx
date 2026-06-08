@@ -158,18 +158,43 @@ export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
     const classes = []
     let elevesRestants = [...elevesNiveau]
 
-    for (let i = 0; i < sallesNiveau.length; i++) {
-      const salle = sallesNiveau[i]
-      const elevesClasse = elevesRestants.splice(0, salle.capacite)
-      classes.push({
-        classeNum: i + 1,
-        classeId: `${niveauId}_c${i+1}`,
-        salle,
-        nbAcceptes: elevesClasse.length,
-        placesLibres: salle.capacite - elevesClasse.length,
-        tauxRemplissage: ((elevesClasse.length / salle.capacite) * 100).toFixed(1),
-        elevesIds: elevesClasse.map(e => e.id),
-      })
+    if (mode === 'C' && sallesNiveau.length > 1) {
+      // Mode C : équilibrer les élèves entre les groupes
+      const capaciteTotale = sallesNiveau.reduce((s, sl) => s + sl.capacite, 0)
+      const nbAcceptesTotal = Math.min(elevesNiveau.length, capaciteTotale)
+      const nbGroupes = sallesNiveau.length
+      const baseParGroupe = Math.floor(nbAcceptesTotal / nbGroupes)
+      const reste = nbAcceptesTotal % nbGroupes
+      const elevesADistribuer = elevesNiveau.slice(0, nbAcceptesTotal)
+      let offset = 0
+      for (let i = 0; i < sallesNiveau.length; i++) {
+        const salle = sallesNiveau[i]
+        let nbIdeal = baseParGroupe + (i < reste ? 1 : 0)
+        nbIdeal = Math.min(nbIdeal, salle.capacite)
+        const elevesClasse = elevesADistribuer.slice(offset, offset + nbIdeal)
+        offset += nbIdeal
+        classes.push({
+          classeNum: i + 1, classeId: niveauId + '_c' + (i+1), salle,
+          nbAcceptes: elevesClasse.length,
+          placesLibres: salle.capacite - elevesClasse.length,
+          tauxRemplissage: ((elevesClasse.length / salle.capacite) * 100).toFixed(1),
+          elevesIds: elevesClasse.map(e => e.id),
+        })
+      }
+      elevesRestants = elevesNiveau.slice(nbAcceptesTotal)
+    } else {
+      // Mode A/B : remplir au maximum dans l'ordre
+      for (let i = 0; i < sallesNiveau.length; i++) {
+        const salle = sallesNiveau[i]
+        const elevesClasse = elevesRestants.splice(0, salle.capacite)
+        classes.push({
+          classeNum: i + 1, classeId: niveauId + '_c' + (i+1), salle,
+          nbAcceptes: elevesClasse.length,
+          placesLibres: salle.capacite - elevesClasse.length,
+          tauxRemplissage: ((elevesClasse.length / salle.capacite) * 100).toFixed(1),
+          elevesIds: elevesClasse.map(e => e.id),
+        })
+      }
     }
 
     affectations[niveauId] = {
@@ -306,11 +331,7 @@ export function AppProvider({ children }) {
     for (const r of config.reglesAge) {
       dpn[r.niveauId] = eleves.filter(e => e.niveauId === r.niveauId).sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription))
     }
-    console.log('MODE ALLOCATION:', config.modeAllocationDefaut)
-    console.log('DEMANDES PAR NIVEAU:', Object.entries(dpn).map(([k,v]) => k+':'+v.length).join(', '))
-    console.log('SALLES:', config.salles.map(s => s.nom+'='+s.capacite).join(', '))
     const { affectations } = optimiserAllocation(dpn, config.salles, config.modeAllocationDefaut || 'C')
-    console.log('AFFECTATIONS:', Object.entries(affectations).map(([k,v]) => k+': '+v.classes?.map(c => c.salle?.nom+'('+c.nbAcceptes+')').join('+')).join(' | '))
 
     // Calculer les statuts à partir des classes
     const statuts = {}
