@@ -159,18 +159,34 @@ export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
     let elevesRestants = [...elevesNiveau]
 
     if (mode === 'C' && sallesNiveau.length > 1) {
-      // Mode C : équilibrer les élèves entre les groupes
+      // Mode C : équilibrer les groupes PROPORTIONNELLEMENT à la capacité des salles
+      // tout en maximisant le nombre d'élèves acceptés
       const capaciteTotale = sallesNiveau.reduce((s, sl) => s + sl.capacite, 0)
       const nbAcceptesTotal = Math.min(elevesNiveau.length, capaciteTotale)
-      const nbGroupes = sallesNiveau.length
-      const baseParGroupe = Math.floor(nbAcceptesTotal / nbGroupes)
-      const reste = nbAcceptesTotal % nbGroupes
       const elevesADistribuer = elevesNiveau.slice(0, nbAcceptesTotal)
+
+      // Distribuer proportionnellement : chaque salle reçoit (sa capacité / capacité totale) * nbAcceptesTotal
+      // arrondi, puis ajuster pour que le total soit exact
+      let allocations = sallesNiveau.map(salle => ({
+        salle,
+        nb: Math.floor((salle.capacite / capaciteTotale) * nbAcceptesTotal)
+      }))
+      // Distribuer les élèves restants aux salles qui ont le plus de place relative
+      let distribues = allocations.reduce((s, a) => s + a.nb, 0)
+      let manquants = nbAcceptesTotal - distribues
+      // Trier par (capacité - nb alloué) décroissant pour donner aux salles les plus grandes
+      const indices = allocations.map((_, i) => i).sort((a, b) =>
+        (allocations[b].salle.capacite - allocations[b].nb) - (allocations[a].salle.capacite - allocations[a].nb)
+      )
+      for (let k = 0; k < manquants; k++) {
+        const i = indices[k % indices.length]
+        if (allocations[i].nb < allocations[i].salle.capacite) allocations[i].nb++
+      }
+
       let offset = 0
       for (let i = 0; i < sallesNiveau.length; i++) {
         const salle = sallesNiveau[i]
-        let nbIdeal = baseParGroupe + (i < reste ? 1 : 0)
-        nbIdeal = Math.min(nbIdeal, salle.capacite)
+        const nbIdeal = allocations[i].nb
         const elevesClasse = elevesADistribuer.slice(offset, offset + nbIdeal)
         offset += nbIdeal
         classes.push({
