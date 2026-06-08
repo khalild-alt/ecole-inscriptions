@@ -159,36 +159,33 @@ export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
     let elevesRestants = [...elevesNiveau]
 
     if (mode === 'C' && sallesNiveau.length > 1) {
-      // Mode C : équilibrer les groupes PROPORTIONNELLEMENT à la capacité des salles
-      // tout en maximisant le nombre d'élèves acceptés
+      // Mode C : équilibrer en nombre absolu d'élèves par groupe
+      // Les petites salles sont remplies en priorité, le reste équilibré dans les grandes
       const capaciteTotale = sallesNiveau.reduce((s, sl) => s + sl.capacite, 0)
       const nbAcceptesTotal = Math.min(elevesNiveau.length, capaciteTotale)
       const elevesADistribuer = elevesNiveau.slice(0, nbAcceptesTotal)
 
-      // Distribuer proportionnellement : chaque salle reçoit (sa capacité / capacité totale) * nbAcceptesTotal
-      // arrondi, puis ajuster pour que le total soit exact
-      let allocations = sallesNiveau.map(salle => ({
-        salle,
-        nb: Math.floor((salle.capacite / capaciteTotale) * nbAcceptesTotal)
-      }))
-      // Distribuer les élèves restants aux salles qui ont le plus de place relative
-      let distribues = allocations.reduce((s, a) => s + a.nb, 0)
-      let manquants = nbAcceptesTotal - distribues
-      // Trier par (capacité - nb alloué) décroissant pour donner aux salles les plus grandes
-      const indices = allocations.map((_, i) => i).sort((a, b) =>
-        (allocations[b].salle.capacite - allocations[b].nb) - (allocations[a].salle.capacite - allocations[a].nb)
-      )
-      for (let k = 0; k < manquants; k++) {
-        const i = indices[k % indices.length]
-        if (allocations[i].nb < allocations[i].salle.capacite) allocations[i].nb++
+      // Trier par capacité croissante pour traiter les contraintes en premier
+      const sallesAvecIdx = sallesNiveau.map((s, i) => ({ ...s, origIdx: i }))
+        .sort((a, b) => a.capacite - b.capacite)
+      const nbParSalle = new Array(sallesNiveau.length).fill(0)
+      let resteADistribuer = nbAcceptesTotal
+      let sallesRestantes = sallesAvecIdx.length
+
+      for (const salle of sallesAvecIdx) {
+        const partIdeale = Math.round(resteADistribuer / sallesRestantes)
+        const nb = Math.min(partIdeale, salle.capacite)
+        nbParSalle[salle.origIdx] = nb
+        resteADistribuer -= nb
+        sallesRestantes--
       }
 
       let offset = 0
       for (let i = 0; i < sallesNiveau.length; i++) {
         const salle = sallesNiveau[i]
-        const nbIdeal = allocations[i].nb
-        const elevesClasse = elevesADistribuer.slice(offset, offset + nbIdeal)
-        offset += nbIdeal
+        const nb = nbParSalle[i]
+        const elevesClasse = elevesADistribuer.slice(offset, offset + nb)
+        offset += nb
         classes.push({
           classeNum: i + 1, classeId: niveauId + '_c' + (i+1), salle,
           nbAcceptes: elevesClasse.length,
