@@ -585,6 +585,29 @@ function imprimerPDF(config, eleves, allocation, nomEtab, anneeLabel, langue) {
   win.document.close()
 }
 
+function exporterExcelInscriptions(config, eleves, allocation, nomEtab, anneeLabel, langue) {
+  const champsVisibles = config.champs.filter(c => c.type !== 'computed')
+  const headers = ['#', ...champsVisibles.map(c => c.label), 'Âge', 'Niveau', 'Statut']
+  if (allocation) headers.push('Salle')
+  const rows = eleves.map((e, idx) => {
+    const niv = config.reglesAge.find(r => r.niveauId === e.niveauId)?.label || ''
+    const statut = e.statut === 'accepte' ? (langue === 'ar' ? 'مقبول' : 'Accepté') : e.statut === 'liste_attente' ? (langue === 'ar' ? 'قائمة انتظار' : "Liste d'attente") : ''
+    const row = [idx + 1, ...champsVisibles.map(c => e[c.id] || ''), e.age || '', niv, statut]
+    if (allocation) {
+      const res = allocation.affectations[e.niveauId]
+      const cls = res?.classes?.find(c => c.elevesIds?.includes(e.id))
+      row.push(cls?.salle?.nomComplet || cls?.salle?.nom || res?.salle?.nom || '—')
+    }
+    return row
+  })
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+  ws['!cols'] = headers.map(() => ({ wch: 18 }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Inscrits')
+  const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')
+  XLSX.writeFile(wb, `inscrits_${date}.xlsx`)
+}
+
 export default function PageInscriptions({ lectureSeule, nomEtab, anneeLabel }) {
   const { t, langue } = useI18n()
   const { effacerToutesInscriptions, creerSauvegarde, eleves: elevesAll, config: configAll, allocation: allocationAll } = useApp()
@@ -609,6 +632,13 @@ export default function PageInscriptions({ lectureSeule, nomEtab, anneeLabel }) 
             setEleveAEditer(null)
           }}>
             🗑 {langue === 'ar' ? 'حذف الكل' : 'Effacer tout'}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => {
+            if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée', 'error'); return }
+            exporterExcelInscriptions(configAll, elevesAll, allocationAll, nomEtab, anneeLabel, langue)
+            toast2(langue === 'ar' ? 'تم التصدير' : 'Export Excel généré', 'success')
+          }}>
+            📊 {langue === 'ar' ? 'تصدير Excel' : 'Export Excel'}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => {
             if (elevesAll.length === 0) { toast2(langue === 'ar' ? 'لا توجد بيانات' : 'Aucune donnée', 'error'); return }
