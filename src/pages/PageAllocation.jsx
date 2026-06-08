@@ -740,3 +740,4 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   )
 }
 // cache bust Mon  8 Jun 2026 15:10:03 CEST
+// cache bust Mon  8 Jun 2026 15:25:45 CEST
