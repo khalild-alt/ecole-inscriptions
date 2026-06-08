@@ -6,17 +6,30 @@ import { useToast } from '../components/Toast'
 import { useI18n } from '../i18n/useI18n'
 import { supabase } from '../lib/supabase'
 
-// ── Couleurs par niveau ─────────────────────────────────────────────────────
-const NIVEAU_COLORS = {
-  annee1: { bg: '#1a5fa0', light: '#dbeafe', text: '#1e3a5f', badge: '#3b82f6' },
-  annee2: { bg: '#2d7a4f', light: '#dcfce7', text: '#14532d', badge: '#22c55e' },
-  annee3: { bg: '#b07d1a', light: '#fef9c3', text: '#713f12', badge: '#eab308' },
-  annee4: { bg: '#6b21a8', light: '#f3e8ff', text: '#3b0764', badge: '#a855f7' },
-}
-const DEFAULT_COLOR = { bg: '#374151', light: '#f3f4f6', text: '#111827', badge: '#6b7280' }
+// ── Couleurs par rang de niveau (stables peu importe l'identifiant) ──────────
+const RANG_COLORS = [
+  { bg: '#1a5fa0', light: '#dbeafe', text: '#1e3a5f', badge: '#3b82f6', xl: 'FF1a5fa0' }, // bleu
+  { bg: '#2d7a4f', light: '#dcfce7', text: '#14532d', badge: '#22c55e', xl: 'FF2d7a4f' }, // vert
+  { bg: '#b07d1a', light: '#fef9c3', text: '#713f12', badge: '#eab308', xl: 'FFb07d1a' }, // orange
+  { bg: '#6b21a8', light: '#f3e8ff', text: '#3b0764', badge: '#a855f7', xl: 'FF6b21a8' }, // violet
+  { bg: '#be123c', light: '#ffe4e6', text: '#881337', badge: '#f43f5e', xl: 'FFbe123c' }, // rouge
+  { bg: '#0f766e', light: '#ccfbf1', text: '#134e4a', badge: '#14b8a6', xl: 'FF0f766e' }, // teal
+]
+const DEFAULT_COLOR = { bg: '#374151', light: '#f3f4f6', text: '#111827', badge: '#6b7280', xl: 'FF374151' }
 
-function getNiveauColor(niveauId) {
-  return NIVEAU_COLORS[niveauId] || DEFAULT_COLOR
+// Cache pour assigner une couleur stable à chaque niveauId
+const _niveauColorCache = {}
+
+function getNiveauColor(niveauId, reglesAge) {
+  if (_niveauColorCache[niveauId]) return _niveauColorCache[niveauId]
+  if (reglesAge) {
+    const idx = reglesAge.findIndex(r => r.niveauId === niveauId)
+    if (idx >= 0) {
+      _niveauColorCache[niveauId] = RANG_COLORS[idx % RANG_COLORS.length]
+      return _niveauColorCache[niveauId]
+    }
+  }
+  return DEFAULT_COLOR
 }
 
 function nomSalle(salle) {
@@ -104,7 +117,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
 function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule }) {
   const taux = parseFloat(classe.tauxRemplissage)
   const terme = terminologie?.groupe || 'Groupe'
-  const couleur = getNiveauColor(niveauId)
+  const couleur = getNiveauColor(niveauId, config.reglesAge)
   const elevesGroupe = eleves.filter(e => classe.elevesIds && classe.elevesIds.includes(e.id))
 
   return (
@@ -156,7 +169,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
 
       {/* Liste des élèves */}
       <div style={{ padding: '10px 16px' }}>
-        <details open={elevesGroupe.length <= 8}>
+        <details>
           <summary style={{ cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6 }}>
             👥 {elevesGroupe.length} élève{elevesGroupe.length > 1 ? 's' : ''} ▾
           </summary>
@@ -204,7 +217,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
 
 // ── Carte d'un niveau ────────────────────────────────────────────────────────
 function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, groupesFiges, onFiger, onOuvrirModal, onRetirer, lectureSeule }) {
-  const couleur = getNiveauColor(niveauId)
+  const couleur = getNiveauColor(niveauId, config.reglesAge)
   const enAttente = eleves.filter(e => e.niveauId === niveauId && e.statut === 'liste_attente')
   const elevesNiveau = eleves.filter(e => e.niveauId === niveauId)
 
@@ -296,14 +309,11 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
   const champs = config.champs.filter(c => c.type !== 'computed')
   const champsHeaders = champs.map(c => c.label)
 
-  // Couleurs Excel par niveau (ARGB)
-  const COULEURS_XL = {
-    annee1: 'FF1a5fa0',
-    annee2: 'FF2d7a4f',
-    annee3: 'FFb07d1a',
-    annee4: 'FF6b21a8',
+  // Couleurs Excel par rang (ARGB) — identiques à l'interface
+  function getCouleurXL(niveauId) {
+    const c = getNiveauColor(niveauId, config.reglesAge)
+    return c.xl || 'FF374151'
   }
-  const DEFAULT_XL = 'FF374151'
 
   function styleCellule(ws, ref, bgColor, bold = false) {
     if (!ws[ref]) return
@@ -333,7 +343,7 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
     if (!resRaw) continue
     const res = resRaw.classes ? resRaw : { ...resRaw, classes: resRaw.salle ? [{ classeId: r.niveauId+'_c1', classeNum: 1, salle: resRaw.salle, elevesIds: eleves.filter(e => e.niveauId === r.niveauId && e.statut === 'accepte').map(e => e.id) }] : [] }
 
-    const couleurXL = COULEURS_XL[r.niveauId] || DEFAULT_XL
+    const couleurXL = getCouleurXL(r.niveauId)
     const couleurLight = couleurXL.replace(/^FF/, 'FFe') // approx
     const rows = []
 
@@ -583,7 +593,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           {/* Légende couleurs */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {config.reglesAge.map(r => {
-              const c = getNiveauColor(r.niveauId)
+              const c = getNiveauColor(r.niveauId, config.reglesAge)
               return (
                 <span key={r.niveauId} style={{ background: c.bg, color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 700, direction: 'auto' }}>
                   {r.label}
@@ -629,7 +639,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                 <tbody>
                   {elevesHorsGroupe.map((e, idx) => {
                     const niveauCompat = config.reglesAge.find(r => e.age >= r.ageMin && e.age <= r.ageMax)
-                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId) : DEFAULT_COLOR
+                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId, config.reglesAge) : DEFAULT_COLOR
                     return (
                       <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
                         <td style={{ padding: '6px 10px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
@@ -672,7 +682,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                     const resRaw = allocation.affectations[r.niveauId]
                     if (!resRaw) return null
                     const res = normaliserRes(resRaw, r.niveauId)
-                    const couleur = getNiveauColor(r.niveauId)
+                    const couleur = getNiveauColor(r.niveauId, config.reglesAge)
                     return res.classes.map((cls, idx) => {
                       const nbEleves = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
                       return (
