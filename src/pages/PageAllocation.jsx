@@ -119,6 +119,8 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
   const terme = terminologie?.groupe || 'Groupe'
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const elevesGroupe = eleves.filter(e => classe.elevesIds && classe.elevesIds.includes(e.id))
+  // Libellé bilingue : "Année 1 — فوج / Groupe 1 — S3 — Nom salle"
+  const nomSalleFull = classe.salle ? (classe.salle.nomComplet ? `${classe.salle.nom} — ${classe.salle.nomComplet}` : classe.salle.nom) : '—'
 
   return (
     <div style={{
@@ -132,9 +134,17 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {fige && <span>🔒</span>}
-            {niveauLabel} — {terme} {classe.classeNum} — {nomSalle(classe.salle)}
+            <span style={{ direction: 'auto' }}>{niveauLabel}</span>
+            <span style={{ opacity: 0.6 }}>—</span>
+            <span>
+              <span style={{ fontFamily: "'Noto Sans Arabic', sans-serif", direction: 'rtl' }}>فوج {classe.classeNum}</span>
+              <span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>
+              <span>{terme} {classe.classeNum}</span>
+            </span>
+            <span style={{ opacity: 0.6 }}>—</span>
+            <span style={{ direction: 'auto' }}>{nomSalleFull}</span>
           </div>
           <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: 2 }}>
             {elevesGroupe.length}/{classe.salle?.capacite} élèves · {((elevesGroupe.length / (classe.salle?.capacite || 1)) * 100).toFixed(0)}%
@@ -695,7 +705,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                               {res.nbAttente > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente} en attente</div>}
                             </td>
                           )}
-                          <td style={{ fontWeight: 600 }}>{terminologie.groupe} {cls.classeNum}</td>
+                          <td style={{ fontWeight: 600 }}>
+                          <span style={{ fontFamily: "'Noto Sans Arabic', sans-serif" }}>فوج {cls.classeNum}</span>
+                          <span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>
+                          <span>{terminologie.groupe} {cls.classeNum}</span>
+                        </td>
                           <td><strong>{cls.salle?.nom || '—'}</strong></td>
                           <td style={{ color: 'var(--ink-muted)', direction: 'auto' }}>{cls.salle?.nomComplet || '—'}</td>
                           <td>{cls.salle?.capacite || '—'}</td>
