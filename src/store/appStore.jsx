@@ -101,9 +101,8 @@ export function determinerNiveau(age, reglesAge) {
   return null
 }
 
-export function optimiserAllocation(demandesParNiveau, salles) {
+export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
   // Algorithme multi-classes : toutes les salles utilisées, min 1 salle par niveau
-  // Maximise le nombre d'élèves acceptés avec 100% de remplissage si possible
   const niveaux = Object.keys(demandesParNiveau).filter(n => demandesParNiveau[n].length > 0)
   if (!niveaux.length || !salles.length) return { affectations: {}, score: 0 }
 
@@ -216,7 +215,7 @@ export function AppProvider({ children }) {
         salles: cfg.salles,
         reglesAge: cfg.regles_age,
         modeCalculAge: cfg.mode_calcul_age,
-        modeAllocationDefaut: cfg.mode_allocation_defaut || 'B',
+        modeAllocationDefaut: cfg.mode_allocation_defaut || 'C',
         champs: cfg.champs,
         nomsOnglets: cfg.noms_onglets || DEFAULT_CONFIG.nomsOnglets,
       })
@@ -246,7 +245,7 @@ export function AppProvider({ children }) {
       salles: cfg.salles,
       regles_age: cfg.reglesAge,
       mode_calcul_age: cfg.modeCalculAge,
-      mode_allocation_defaut: cfg.modeAllocationDefaut || 'B',
+      mode_allocation_defaut: cfg.modeAllocationDefaut || 'C',
       champs: cfg.champs,
       noms_onglets: cfg.nomsOnglets || DEFAULT_CONFIG.nomsOnglets,
       terminologie: cfg.terminologie || DEFAULT_CONFIG.terminologie,
