@@ -46,8 +46,8 @@ export default function App() {
   const nomsOnglets = config?.nomsOnglets || DEFAULT_CONFIG.nomsOnglets
   // Nom d'affichage : utilise nom_affichage si défini, sinon nom technique
   const nomEtab = profil.etablissements?.nom_affichage || profil.etablissements?.nom || ''
-  const langue = config?.langue || 'fr'
-  const isRtl = langue === 'ar'
+  
+  const isRtl = langueI18n === 'ar'
 
   const tousOnglets = [
     { id: 'config_salles',    roles: ['admin', 'superadmin'] },
@@ -111,12 +111,12 @@ export default function App() {
           )}
           {/* Sélecteur de langue */}
           <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 3 }}>
-            <button onClick={() => setConfig(prev => ({ ...prev, langue: 'fr' }))}
+            <button onClick={() => { setLangue('fr'); setConfig(prev => ({ ...prev, langue: 'fr' })); window.location.reload() }}
               style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
                 background: !isRtl ? 'white' : 'transparent', color: !isRtl ? KAKI_DARK : 'rgba(255,255,255,0.7)' }}>
               FR
             </button>
-            <button onClick={() => setConfig(prev => ({ ...prev, langue: 'ar' }))}
+            <button onClick={() => { setLangue('ar'); setConfig(prev => ({ ...prev, langue: 'ar' })); window.location.reload() }}
               style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
                 fontFamily: "'Noto Sans Arabic', sans-serif",
                 background: isRtl ? 'white' : 'transparent', color: isRtl ? KAKI_DARK : 'rgba(255,255,255,0.7)' }}>
