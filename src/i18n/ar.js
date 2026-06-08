@@ -158,7 +158,7 @@ export default {
     col_age:          'السن',
     col_niveau:       'المستوى',
     col_statut:       'الحالة',
-    ans:              'سنة',
+    ans:              'سنوات',
     confirm_suppr:    'حذف {prenom} {nom} ?\n\nهذا الإجراء لا يمكن التراجع عنه.',
   },
 
@@ -215,7 +215,7 @@ export default {
   export: {
     titre:            'تصدير',
     btn_excel:        '📥 تصدير Excel',
-    btn_pdf:          '📥 تصدير PDF',
+    btn_pdf:          '📥 طباعة PDF',
     titre_excel:      'تصدير Excel',
     titre_pdf:        'تصدير PDF',
     desc_excel:       'ملف .xlsx يحتوي على: كل التلاميذ، المقبولون، قائمة الانتظار، الملخص.',
