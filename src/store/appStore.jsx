@@ -267,6 +267,23 @@ export function AppProvider({ children }) {
     return el
   }, [annee, config])
 
+  // Insert batch ordonné — respecte l'ordre du tableau
+  const ajouterElevesBatch = useCallback(async (listeDonnees) => {
+    const rows = listeDonnees.map(donnees => {
+      const age = calculerAge(donnees.dateNaissance, config.modeCalculAge)
+      const niveauId = determinerNiveau(age, config.reglesAge)
+      return { annee_id: annee.id, etablissement_id: annee.etablissement_id, donnees, age, niveau_id: niveauId, statut: 'attente', force: false }
+    })
+    const { data, error } = await supabase.from('eleves').insert(rows).select()
+    if (error) throw error
+    // data revient dans l'ordre d'insertion — on trie par created_at pour être sûr
+    const nouveaux = (data || [])
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      .map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: 'attente', force: false, dateInscription: e.date_inscription }))
+    setEleves(prev => [...prev, ...nouveaux])
+    return nouveaux
+  }, [annee, config])
+
   const supprimerEleve = useCallback(async (id) => {
     await supabase.from('eleves').delete().eq('id', id)
     setEleves(prev => prev.filter(e => e.id !== id))
@@ -370,7 +387,7 @@ export function AppProvider({ children }) {
   const incrementerModifs = useCallback(async () => {}, [])
 
   return (
-    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
+    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, ajouterElevesBatch, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
       {children}
     </AppContext.Provider>
   )

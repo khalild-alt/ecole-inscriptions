@@ -208,7 +208,7 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
 }
 
 function ImportExcel() {
-  const { config, ajouterEleve } = useApp()
+  const { config, ajouterElevesBatch } = useApp()
   const { t, langue } = useI18n()
   const toast = useToast()
   const fileRef = useRef()
