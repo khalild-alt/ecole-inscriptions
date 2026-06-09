@@ -729,6 +729,38 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
         </div>
       )}
 
+      {/* ── Boutons en bas de page ── */}
+      {allocation && (
+        <div className="card no-print" style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            {!lectureSeule && (
+              <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul}>
+                {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ حساب التوزيع' : "▶ Calculer l'allocation")}
+              </button>
+            )}
+            {!modeReaffectation && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
+                  ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
+                </button>
+                <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
+                  ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
+                </button>
+              </div>
+            )}
+            {modeReaffectation && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#fef9c3', padding: '8px 14px', borderRadius: 8, border: '2px solid #eab308' }}>
+                <span style={{ fontSize: '0.85rem', color: '#854d0e', fontWeight: 600 }}>
+                  {ar ? '⚠ وضع إعادة التوزيع اليدوي' : '⚠ Mode réaffectation manuelle'}
+                </span>
+                <button className="btn btn-success btn-sm" onClick={validerReaffectation}>✓ {ar ? 'تحقق' : 'Valider'}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setModeReaffectation(false); setReaffectations({}) }}>{ar ? 'إلغاء' : 'Annuler'}</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {modalEleve && (
         <ModalAjouterAGroupe eleve={modalEleve.eleve} allocation={allocation} config={config}
           eleves={eleves} onConfirm={confirmerAjout} onClose={() => setModalEleve(null)}
