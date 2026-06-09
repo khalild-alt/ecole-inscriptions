@@ -560,7 +560,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                       const cap = cls.salle?.capacite || 1
                       const taux = ((nb / cap) * 100).toFixed(0)
                       return (
-                        <tr key={cls.classeId} style={{ background: idx % 2 === 0 ? couleur.light + '55' : 'white', borderBottom: `1px solid ${couleur.badge}33` }}>
+                        <tr key={cls.classeId} style={{ background: couleur.light + '88', borderBottom: `1px solid ${couleur.badge}44` }}>
                           {idx === 0 && (
                             <td rowSpan={res.classes.length} style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle', borderRight: `3px solid ${couleur.bg}` }}>
                               <span style={{ background: couleur.bg, color: 'white', padding: '4px 12px', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', direction: 'auto', display: 'inline-block' }}>{r.label}</span>
