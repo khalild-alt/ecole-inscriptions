@@ -207,7 +207,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
             <button className="btn btn-sm"
               style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.78rem' }}
               onClick={() => onFiger(classe.classeId, !fige)}>
-              {fige ? (ar ? '🔓 تحرير' : '🔓 Libérer') : (ar ? '🔒 تثبيت' : '🔒 Figer')}
+              {fige ? (ar ? '🔓 تحرير' : '🔓 Libérer') : (ar ? '🔒 تجميد' : '🔒 Figer')}
             </button>
           )}
           <div style={{ textAlign: 'right', minWidth: 48 }}>
@@ -480,7 +480,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     if (figer) n.add(classeId); else n.delete(classeId)
     setGroupesFiges(n)
     await sauvegarderAllocation(null, n)
-    toast(figer ? (ar ? '🔒 تم تثبيت القسم' : '🔒 Groupe figé') : (ar ? '🔓 تم تحرير القسم' : '🔓 Groupe libéré'), 'info')
+    toast(figer ? (ar ? '🔒 تم تجميد القسم' : '🔒 Groupe figé') : (ar ? '🔓 تم تحرير القسم' : '🔓 Groupe libéré'), 'info')
   }
 
   async function handleRetirer(eleveId, classeId, niveauId) {
