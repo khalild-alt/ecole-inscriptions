@@ -523,6 +523,25 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     toast(ar ? `تمت إضافة ${eleve.prenom} ${eleve.nom} إلى القسم` : `${eleve.prenom} ${eleve.nom} ajouté au groupe`, 'success')
   }
 
+  async function transfererEleve(classeSourceId, classeDestId, niveauId) {
+    // Prend un élève de classeSource et le met dans classeDest
+    const aff = JSON.parse(JSON.stringify(allocation.affectations))
+    const res = aff[niveauId]
+    if (!res?.classes) return
+    const src = res.classes.find(c => c.classeId === classeSourceId)
+    const dst = res.classes.find(c => c.classeId === classeDestId)
+    if (!src?.elevesIds?.length || !dst) return
+    // Prend le dernier élève de la source
+    const eleveId = src.elevesIds[src.elevesIds.length - 1]
+    src.elevesIds = src.elevesIds.filter(id => id !== eleveId)
+    if (!dst.elevesIds) dst.elevesIds = []
+    dst.elevesIds.push(eleveId)
+    // Recalcul nbAcceptes
+    res.nbAcceptes = res.classes.reduce((s, c) => s + (c.elevesIds?.length || 0), 0)
+    await sauvegarderAllocation(aff, null)
+    toast(ar ? '✓ تم نقل التلميذ' : '✓ Élève transféré', 'success')
+  }
+
   const totalEleves = eleves.length
   const totalAcceptes = eleves.filter(e => e.statut === 'accepte').length
   const totalAttente = eleves.filter(e => e.statut === 'liste_attente').length
@@ -700,6 +719,19 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                       const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
                       const cap = cls.salle?.capacite || 1
                       const taux = ((nb / cap) * 100).toFixed(0)
+                      // Logique +/-
+                      const autresClasses = res.classes.filter(c => c.classeId !== cls.classeId)
+                      const nbFn = c => eleves.filter(e => c.elevesIds?.includes(e.id)).length
+                      // + : salle pas pleine ET un autre groupe a des élèves à donner
+                      const donneur = autresClasses.filter(c => nbFn(c) > 0).sort((a, b) => nbFn(b) - nbFn(a))[0]
+                      const canPlus = nb < cap && !!donneur
+                      // - : ce groupe a des élèves ET un autre groupe a de la place
+                      const receveur = autresClasses.filter(c => {
+                        const capC = c.salle?.capacite || 1
+                        return nbFn(c) < capC
+                      }).sort((a, b) => nbFn(a) - nbFn(b))[0]
+                      const canMoins = nb > 0 && !!receveur
+                      const btnBase = { border: 'none', borderRadius: 6, width: 22, height: 22, fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 0.15s' }
                       return (
                         <tr key={cls.classeId} style={{ background: couleur.light + '88', borderBottom: `1px solid ${couleur.badge}44` }}>
                           {idx === 0 && (
@@ -712,7 +744,25 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                           <td style={{ padding: '10px 12px', textAlign: 'center' }}><strong>{cls.salle?.nom || '—'}</strong></td>
                           <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--ink-muted)', direction: 'auto' }}>{cls.salle?.nomComplet || '—'}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cap}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}><span style={{ background: couleur.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>{nb}</span></td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            {!lectureSeule ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <button
+                                  disabled={!canMoins}
+                                  onClick={() => canMoins && transfererEleve(cls.classeId, receveur.classeId, r.niveauId)}
+                                  title={canMoins ? (ar ? `نقل تلميذ إلى فوج ${receveur.classeNum}` : `Déplacer un élève vers ${terminologie.groupe} ${receveur?.classeNum}`) : ''}
+                                  style={{ ...btnBase, background: canMoins ? '#f97316' : '#e5e7eb', color: canMoins ? 'white' : '#9ca3af', opacity: canMoins ? 1 : 0.5 }}>−</button>
+                                <span style={{ background: couleur.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontWeight: 700, minWidth: 28, textAlign: 'center', display: 'inline-block' }}>{nb}</span>
+                                <button
+                                  disabled={!canPlus}
+                                  onClick={() => canPlus && transfererEleve(donneur.classeId, cls.classeId, r.niveauId)}
+                                  title={canPlus ? (ar ? `أخذ تلميذ من فوج ${donneur.classeNum}` : `Prendre un élève du ${terminologie.groupe} ${donneur?.classeNum}`) : ''}
+                                  style={{ ...btnBase, background: canPlus ? '#22c55e' : '#e5e7eb', color: canPlus ? 'white' : '#9ca3af', opacity: canPlus ? 1 : 0.5 }}>+</button>
+                              </div>
+                            ) : (
+                              <span style={{ background: couleur.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>{nb}</span>
+                            )}
+                          </td>
                           <td style={{ padding: '10px 12px', textAlign: 'center' }}><span style={{ color: (cap - nb) > 0 ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }}>{cap - nb}</span></td>
                           <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
