@@ -160,7 +160,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
   )
 }
 
-function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue, modeReaffectation, toutesLesSalles, onChangerSalle, sallesDejaChoisies }) {
+function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue }) {
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const elevesGroupe = eleves.filter(e => classe.elevesIds && classe.elevesIds.includes(e.id))
   const terme = terminologie?.groupe || 'Groupe'
@@ -256,7 +256,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
   )
 }
 
-function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, groupesFiges, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue, modeReaffectation, toutesLesSalles, onChangerSalle, sallesDejaChoisies }) {
+function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, groupesFiges, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue }) {
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const ar = langue === 'ar'
   const terme = terminologie?.groupe || 'Groupe'
@@ -283,9 +283,7 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
             eleves={eleves} config={config} terminologie={terminologie}
             fige={groupesFiges.has(cls.classeId)} onFiger={onFiger}
             onOuvrirModal={onOuvrirModal} onRetirer={onRetirer}
-            lectureSeule={lectureSeule} langue={langue}
-            modeReaffectation={modeReaffectation} toutesLesSalles={toutesLesSalles}
-            onChangerSalle={onChangerSalle} sallesDejaChoisies={sallesDejaChoisies} />
+            lectureSeule={lectureSeule} langue={langue} />
         ))}
 
         {enAttente.length > 0 && (
@@ -346,10 +344,6 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const [calcul, setCalcul] = useState(false)
   const [modalEleve, setModalEleve] = useState(null)
   const [elevesHorsGroupe, setElevesHorsGroupe] = useState([])
-  const [modeReaffectation, setModeReaffectation] = useState(false)
-  const [reaffectations, setReaffectations] = useState({})
-  const [solutionsAuto, setSolutionsAuto] = useState([])
-  const [indexSolution, setIndexSolution] = useState(-1)
 
   async function handleOptimiser() {
     if (eleves.length === 0) { toast(ar ? 'لا توجد تسجيلات' : 'Aucune inscription à traiter', 'error'); return }
@@ -369,105 +363,6 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
     await supabase.from('allocations').insert({ annee_id: annee.id, affectations: aff, groupes_figes: figes, mode: 'multi', calculated_at: new Date().toISOString() })
     setAllocation({ affectations: aff, mode: 'multi', date: new Date().toISOString(), groupesFiges: figes })
-  }
-
-  // ── Réaffectation automatique ───────────────────────────────────────────
-  async function reaffectationAutomatique() {
-    if (!allocation) return
-    const groupes = []
-    for (const res of Object.values(allocation.affectations)) {
-      for (const cls of res.classes || []) {
-        const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
-        groupes.push({ classeId: cls.classeId, nb })
-      }
-    }
-    const salles = [...config.salles].sort((a, b) => a.capacite - b.capacite)
-    const solutions = []
-    function bt(idx, used, aff) {
-      if (idx === groupes.length) {
-        const vides = aff.reduce((s, a) => s + (salles.find(sl => sl.id === a.sid)?.capacite || 0) - a.nb, 0)
-        solutions.push({ aff: [...aff], vides })
-        return
-      }
-      for (let i = 0; i < salles.length; i++) {
-        if (!used[i] && salles[i].capacite >= groupes[idx].nb) {
-          used[i] = true
-          aff.push({ classeId: groupes[idx].classeId, sid: salles[i].id, nb: groupes[idx].nb })
-          bt(idx + 1, used, aff)
-          aff.pop()
-          used[i] = false
-          if (solutions.length >= 200) return
-        }
-      }
-    }
-    bt(0, new Array(salles.length).fill(false), [])
-    solutions.sort((a, b) => a.vides - b.vides)
-    if (solutions.length === 0) { toast(ar ? 'لا توجد حلول ممكنة' : 'Aucune solution possible', 'error'); return }
-    setSolutionsAuto(solutions)
-    const newIdx = indexSolution < 0 ? 0 : (indexSolution + 1) % solutions.length
-    setIndexSolution(newIdx)
-    const sol = solutions[newIdx]
-    const map = {}
-    sol.aff.forEach(a => { map[a.classeId] = a.sid })
-    const aff2 = JSON.parse(JSON.stringify(allocation.affectations))
-    for (const res of Object.values(aff2)) {
-      for (const cls of res.classes || []) {
-        const sid = map[cls.classeId]
-        if (sid) {
-          const s = config.salles.find(sl => sl.id === sid)
-          if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
-        }
-      }
-    }
-    await sauvegarderAllocation(aff2, null)
-    toast(ar ? `⚡ توزيع تلقائي — ${sol.vides} مقعد شاغر (${newIdx + 1}/${solutions.length})` : `⚡ Réaffectation auto — ${sol.vides} place(s) vide(s) (${newIdx + 1}/${solutions.length})`, 'success')
-  }
-
-  // ── Réaffectation manuelle ────────────────────────────────────────────────
-  function demarrerReaffectation() {
-    const init = {}
-    if (allocation) {
-      for (const res of Object.values(allocation.affectations)) {
-        for (const cls of res.classes || []) {
-          if (cls.salle) init[cls.classeId] = cls.salle.id
-        }
-      }
-    }
-    setReaffectations(init)
-    setModeReaffectation(true)
-  }
-
-  async function validerReaffectation() {
-    const vals = Object.values(reaffectations)
-    const doublons = vals.filter((s, i) => vals.indexOf(s) !== i)
-    if (doublons.length > 0) {
-      const nom = config.salles.find(s => s.id === doublons[0])?.nom || doublons[0]
-      toast(ar ? `الصّالة ${nom} مستخدمة مرتين` : `Salle ${nom} affectée deux fois`, 'error'); return
-    }
-    for (const [cid, sid] of Object.entries(reaffectations)) {
-      const salle = config.salles.find(s => s.id === sid)
-      if (!salle) continue
-      for (const res of Object.values(allocation.affectations)) {
-        const cls = (res.classes || []).find(c => c.classeId === cid)
-        if (cls) {
-          const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
-          if (salle.capacite < nb) { toast(ar ? `طاقة ${salle.nom} (${salle.capacite}) أقل من عدد التلاميذ (${nb})` : `Capacité de ${salle.nom} (${salle.capacite}) insuffisante pour ${nb} élèves`, 'error'); return }
-        }
-      }
-    }
-    const aff = JSON.parse(JSON.stringify(allocation.affectations))
-    for (const res of Object.values(aff)) {
-      for (const cls of res.classes || []) {
-        const sid = reaffectations[cls.classeId]
-        if (sid) {
-          const s = config.salles.find(sl => sl.id === sid)
-          if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
-        }
-      }
-    }
-    await sauvegarderAllocation(aff, null)
-    setModeReaffectation(false); setReaffectations({})
-    toast(ar ? '✓ تم التغيير اليدوي' : '✓ Réaffectation manuelle validée', 'success')
   }
 
   async function handleFiger(classeId, figer) {
@@ -545,25 +440,6 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
               {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ حساب التوزيع' : "▶ Calculer l'allocation")}
             </button>
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
-            {allocation && !modeReaffectation && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
-                  ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution + 1}/${solutionsAuto.length})` : `Solution auto (${indexSolution + 1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
-                </button>
-                <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
-                  ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
-                </button>
-              </div>
-            )}
-            {modeReaffectation && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#fef9c3', padding: '8px 14px', borderRadius: 8, border: '2px solid #eab308' }}>
-                <span style={{ fontSize: '0.85rem', color: '#854d0e', fontWeight: 600 }}>
-                  {ar ? '⚠ وضع إعادة التوزيع اليدوي' : '⚠ Mode réaffectation manuelle'}
-                </span>
-                <button className="btn btn-success btn-sm" onClick={validerReaffectation}>✓ {ar ? 'تحقق' : 'Valider'}</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => { setModeReaffectation(false); setReaffectations({}) }}>{ar ? 'إلغاء' : 'Annuler'}</button>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -588,7 +464,71 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div className="card">
+            {config.reglesAge.map(r => {
+              const c = getNiveauColor(r.niveauId, config.reglesAge)
+              return <span key={r.niveauId} style={{ background: c.bg, color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 700, direction: 'auto' }}>{r.label}</span>
+            })}
+          </div>
+
+          {config.reglesAge.map(r => {
+            const resRaw = allocation.affectations[r.niveauId]
+            if (!resRaw) return null
+            const res = normaliserRes(resRaw, r.niveauId)
+            return <CarteNiveau key={r.niveauId} niveauId={r.niveauId} label={r.label} res={res}
+              eleves={eleves} config={config} terminologie={terminologie}
+              groupesFiges={groupesFiges} onFiger={handleFiger}
+              onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
+              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue} />
+          })}
+
+          {elevesHorsGroupe.length > 0 && (
+            <div className="card" style={{ border: '2px dashed var(--warning)' }}>
+              <div className="card-title">🚫 {ar ? `تلاميذ بدون قسم (${elevesHorsGroupe.length})` : `Élèves sans groupe (${elevesHorsGroupe.length})`}</div>
+              <div className="alert alert-warning" style={{ marginBottom: 12 }}>
+                {ar ? 'هؤلاء التلاميذ تمت إزالتهم يدوياً. يمكنك إضافتهم إلى قسم أو تركهم في قائمة الانتظار.' : "Ces élèves ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente."}
+              </div>
+              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--paper)' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>#</th>
+                    {config.champs.filter(c => c.type !== 'computed').map(c => (
+                      <th key={c.id} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)', direction: 'auto' }}>{c.label}</th>
+                    ))}
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'السن' : 'Âge'}</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'المستوى المتوافق' : 'Niveau compatible'}</th>
+                    {!lectureSeule && <th style={{ width: 140 }}></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {elevesHorsGroupe.map((e, idx) => {
+                    const niveauCompat = config.reglesAge.find(r => e.age >= r.ageMin && e.age <= r.ageMax)
+                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId, config.reglesAge) : DEFAULT_COLOR
+                    return (
+                      <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
+                        <td style={{ padding: '6px 10px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
+                        {config.champs.filter(ch => ch.type !== 'computed').map(ch => (
+                          <td key={ch.id} style={{ padding: '6px 10px', direction: 'auto' }}>{e[ch.id] || '—'}</td>
+                        ))}
+                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
+                        <td style={{ padding: '6px 10px' }}>
+                          {niveauCompat && <span style={{ background: c.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 700, direction: 'auto' }}>{niveauCompat.label}</span>}
+                        </td>
+                        {!lectureSeule && (
+                          <td style={{ padding: '6px 10px' }}>
+                            <button className="btn btn-success btn-sm" onClick={() => setModalEleve({ eleve: e, niveauActuel: niveauCompat?.niveauId, classeActuelle: null })}>
+                              {ar ? '+ إضافة إلى قسم' : '+ Ajouter à un groupe'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="card">
             <div className="card-title">📊 {ar ? 'جدول الملخص' : 'Tableau de synthèse'}</div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
@@ -671,73 +611,5 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           terminologie={terminologie} langue={langue} />
       )}
     </div>
-
-                    {config.reglesAge.map(r => {
-              const c = getNiveauColor(r.niveauId, config.reglesAge)
-              return <span key={r.niveauId} style={{ background: c.bg, color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 700, direction: 'auto' }}>{r.label}</span>
-            })}
-          </div>
-
-          {config.reglesAge.map(r => {
-            const resRaw = allocation.affectations[r.niveauId]
-            if (!resRaw) return null
-            const res = normaliserRes(resRaw, r.niveauId)
-            return <CarteNiveau key={r.niveauId} niveauId={r.niveauId} label={r.label} res={res}
-              eleves={eleves} config={config} terminologie={terminologie}
-              groupesFiges={groupesFiges} onFiger={handleFiger}
-              onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
-              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue}
-              modeReaffectation={modeReaffectation} toutesLesSalles={config.salles}
-              onChangerSalle={(cid, sid) => setReaffectations(prev => ({ ...prev, [cid]: sid }))}
-              sallesDejaChoisies={reaffectations} />
-          })}
-
-          {elevesHorsGroupe.length > 0 && (
-            <div className="card" style={{ border: '2px dashed var(--warning)' }}>
-              <div className="card-title">🚫 {ar ? `تلاميذ بدون قسم (${elevesHorsGroupe.length})` : `Élèves sans groupe (${elevesHorsGroupe.length})`}</div>
-              <div className="alert alert-warning" style={{ marginBottom: 12 }}>
-                {ar ? 'هؤلاء التلاميذ تمت إزالتهم يدوياً. يمكنك إضافتهم إلى قسم أو تركهم في قائمة الانتظار.' : "Ces élèves ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente."}
-              </div>
-              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--paper)' }}>
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>#</th>
-                    {config.champs.filter(c => c.type !== 'computed').map(c => (
-                      <th key={c.id} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)', direction: 'auto' }}>{c.label}</th>
-                    ))}
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'السن' : 'Âge'}</th>
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'المستوى المتوافق' : 'Niveau compatible'}</th>
-                    {!lectureSeule && <th style={{ width: 140 }}></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {elevesHorsGroupe.map((e, idx) => {
-                    const niveauCompat = config.reglesAge.find(r => e.age >= r.ageMin && e.age <= r.ageMax)
-                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId, config.reglesAge) : DEFAULT_COLOR
-                    return (
-                      <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
-                        <td style={{ padding: '6px 10px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
-                        {config.champs.filter(ch => ch.type !== 'computed').map(ch => (
-                          <td key={ch.id} style={{ padding: '6px 10px', direction: 'auto' }}>{e[ch.id] || '—'}</td>
-                        ))}
-                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
-                        <td style={{ padding: '6px 10px' }}>
-                          {niveauCompat && <span style={{ background: c.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 700, direction: 'auto' }}>{niveauCompat.label}</span>}
-                        </td>
-                        {!lectureSeule && (
-                          <td style={{ padding: '6px 10px' }}>
-                            <button className="btn btn-success btn-sm" onClick={() => setModalEleve({ eleve: e, niveauActuel: niveauCompat?.niveauId, classeActuelle: null })}>
-                              {ar ? '+ إضافة إلى قسم' : '+ Ajouter à un groupe'}
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-)
+  )
 }
-// Tue  9 Jun 2026 10:56:52 CEST
