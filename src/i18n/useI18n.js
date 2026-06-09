@@ -1,29 +1,49 @@
 // src/i18n/useI18n.js
-// Hook React pour accéder aux textes de l'interface
-
+import { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../store/appStore'
 import fr from './fr'
 import ar from './ar'
 
 const LANGUES = { fr, ar }
 
+// State global partagé entre tous les composants
+let _langue = localStorage.getItem('app_langue') || 'fr'
+const _listeners = new Set()
+
+function setLangueGlobal(l) {
+  _langue = l
+  localStorage.setItem('app_langue', l)
+  _listeners.forEach(fn => fn(l))
+}
+
 export function useI18n() {
   const { config } = useApp()
-  // Priorité : localStorage > config Supabase > 'fr'
-  const langueStockee = typeof window !== 'undefined' ? localStorage.getItem('app_langue') : null
-  const langue = langueStockee || config?.langue || 'fr'
+  const [langue, setLangueState] = useState(() => localStorage.getItem('app_langue') || config?.langue || 'fr')
+
+  useEffect(() => {
+    function onChangement(l) { setLangueState(l) }
+    _listeners.add(onChangement)
+    return () => _listeners.delete(onChangement)
+  }, [])
+
+  // Sync avec config Supabase si pas de préférence locale
+  useEffect(() => {
+    if (!localStorage.getItem('app_langue') && config?.langue) {
+      setLangueState(config.langue)
+    }
+  }, [config?.langue])
+
   const t = LANGUES[langue] || fr
   const isRtl = langue === 'ar'
 
-  function setLangue(l) {
-    if (typeof window !== 'undefined') localStorage.setItem('app_langue', l)
-  }
+  const setLangue = useCallback((l) => {
+    setLangueGlobal(l)
+    setLangueState(l)
+  }, [])
 
   return { t, langue, isRtl, setLangue }
 }
 
-// Utilitaire pour interpoler les variables dans les chaînes
-// Exemple : interpoler('Bonjour {nom}', { nom: 'Khalil' }) → 'Bonjour Khalil'
 export function interpoler(texte, vars = {}) {
   return texte.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`)
 }

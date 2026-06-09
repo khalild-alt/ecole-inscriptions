@@ -28,8 +28,7 @@ function NomEtab({ nom, style }) {
 
 export default function App() {
   const { session, profil, loading: authLoading, logout } = useAuth()
-  const { annee, onglet, setOnglet, eleves, allocation, chargerAnnee, reinitialiser, dbLoading, config, setConfig } = useApp()
-  const { t, langue: langueI18n, setLangue } = useI18n()
+  const { annee, onglet, setOnglet, eleves, allocation, chargerAnnee, reinitialiser, dbLoading, config } = useApp()
 
   if (authLoading) {
     return (
@@ -46,8 +45,8 @@ export default function App() {
   const nomsOnglets = config?.nomsOnglets || DEFAULT_CONFIG.nomsOnglets
   // Nom d'affichage : utilise nom_affichage si défini, sinon nom technique
   const nomEtab = profil.etablissements?.nom_affichage || profil.etablissements?.nom || ''
-  
-  const isRtl = langueI18n === 'ar'
+  const langue = config?.langue || 'fr'
+  const isRtl = langue === 'ar'
 
   const tousOnglets = [
     { id: 'config_salles',    roles: ['admin', 'superadmin'] },
@@ -109,20 +108,6 @@ export default function App() {
               ⚙ {isRtl ? 'الإدارة العامة' : 'Gestion Admin'}
             </button>
           )}
-          {/* Sélecteur de langue */}
-          <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 3 }}>
-            <button onClick={() => { setLangue('fr'); setConfig(prev => ({ ...prev, langue: 'fr' })); window.location.reload() }}
-              style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
-                background: !isRtl ? 'white' : 'transparent', color: !isRtl ? KAKI_DARK : 'rgba(255,255,255,0.7)' }}>
-              FR
-            </button>
-            <button onClick={() => { setLangue('ar'); setConfig(prev => ({ ...prev, langue: 'ar' })); window.location.reload() }}
-              style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
-                fontFamily: "'Noto Sans Arabic', sans-serif",
-                background: isRtl ? 'white' : 'transparent', color: isRtl ? KAKI_DARK : 'rgba(255,255,255,0.7)' }}>
-              ع
-            </button>
-          </div>
           <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '2px solid rgba(255,255,255,0.4)', fontWeight: 700 }}
             onClick={logout}>
             {isRtl ? 'خروج' : 'Déconnexion'}
@@ -161,10 +146,7 @@ export default function App() {
           {/* ── Onglets sticky ── */}
           <nav style={{ background: KAKI_DARK, display: 'flex', padding: '0 16px', gap: 4, overflowX: 'auto', borderBottom: '3px solid rgba(255,255,255,0.08)', position: 'sticky', top: '72px', zIndex: 90 }} className="no-print">
             {ongletsFiltres.map(o => {
-              const nomConfig = nomsOnglets[o.id] || DEFAULT_CONFIG.nomsOnglets[o.id] || { icone: '', label: o.id }
-              // Utiliser la traduction i18n si disponible
-              const labelTraduit = t.onglets?.[o.id] || nomConfig.label
-              const nom = { icone: nomConfig.icone, label: labelTraduit }
+              const nom = nomsOnglets[o.id] || DEFAULT_CONFIG.nomsOnglets[o.id] || { icone: '', label: o.id }
               const hasArabic = /[\u0600-\u06FF]/.test(nom.label)
               const isActive = onglet === o.id
               return (
