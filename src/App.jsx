@@ -10,6 +10,7 @@ import PageConfigInterface from './pages/PageConfigInterface'
 import PageInscriptions from './pages/PageInscriptions'
 import PageAllocation from './pages/PageAllocation'
 import PageRestauration from './pages/PageRestauration'
+import AgentAide from './components/AgentAide'
 
 // Couleur vert kaki foncé pour le menu
 const KAKI = '#3b4a2f'
@@ -201,6 +202,7 @@ export default function App() {
           </main>
         </>
       )}
+      <AgentAide />
     </div>
   )
 }
