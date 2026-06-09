@@ -383,6 +383,23 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   }
 
 
+  async function appliquerSolution(idx) {
+    if (!solutionsAuto.length) return
+    const sol = solutionsAuto[idx]
+    const map = {}
+    sol.aff.forEach(a => { map[a.classeId] = a.sid })
+    const aff2 = JSON.parse(JSON.stringify(allocation.affectations))
+    for (const res of Object.values(aff2)) {
+      for (const cls of res.classes || []) {
+        const s = config.salles.find(sl => sl.id === map[cls.classeId])
+        if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
+      }
+    }
+    await sauvegarderAllocation(aff2, null)
+    setIndexSolution(idx)
+    toast(ar ? `⚡ حل ${idx+1}/${solutionsAuto.length} — ${sol.vides} مقعد شاغر` : `⚡ Solution ${idx+1}/${solutionsAuto.length} — ${sol.vides} place(s) vide(s)`, 'success')
+  }
+
   async function reaffectationAutomatique() {
     if (!allocation) return
     const groupes = []
@@ -413,18 +430,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     if (!solutions.length) { toast(ar ? 'لا توجد حلول ممكنة' : 'Aucune solution possible', 'error'); return }
     setSolutionsAuto(solutions)
     const newIdx = indexSolution < 0 ? 0 : (indexSolution + 1) % solutions.length
-    setIndexSolution(newIdx)
-    const map = {}
-    solutions[newIdx].aff.forEach(a => { map[a.classeId] = a.sid })
-    const aff2 = JSON.parse(JSON.stringify(allocation.affectations))
-    for (const res of Object.values(aff2)) {
-      for (const cls of res.classes || []) {
-        const s = config.salles.find(sl => sl.id === map[cls.classeId])
-        if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
-      }
-    }
-    await sauvegarderAllocation(aff2, null)
-    toast(ar ? `⚡ توزيع تلقائي — ${solutions[newIdx].vides} مقعد شاغر (${newIdx+1}/${solutions.length})` : `⚡ Réaffectation auto — ${solutions[newIdx].vides} place(s) vide(s) (${newIdx+1}/${solutions.length})`, 'success')
+    await appliquerSolution(newIdx)
   }
 
   function demarrerReaffectation() {
@@ -544,6 +550,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
             {allocation && !modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
+                {solutionsAuto.length > 1 && (
+                  <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
+                    ⏮ {ar ? 'السابق' : 'Précédent'}
+                  </button>
+                )}
                 <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
                   ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
                 </button>
@@ -740,6 +751,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             )}
             {!modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
+                {solutionsAuto.length > 1 && (
+                  <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
+                    ⏮ {ar ? 'السابق' : 'Précédent'}
+                  </button>
+                )}
                 <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
                   ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
                 </button>
