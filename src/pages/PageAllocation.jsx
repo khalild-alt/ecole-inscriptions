@@ -588,74 +588,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {config.reglesAge.map(r => {
-              const c = getNiveauColor(r.niveauId, config.reglesAge)
-              return <span key={r.niveauId} style={{ background: c.bg, color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 700, direction: 'auto' }}>{r.label}</span>
-            })}
-          </div>
-
-          {config.reglesAge.map(r => {
-            const resRaw = allocation.affectations[r.niveauId]
-            if (!resRaw) return null
-            const res = normaliserRes(resRaw, r.niveauId)
-            return <CarteNiveau key={r.niveauId} niveauId={r.niveauId} label={r.label} res={res}
-              eleves={eleves} config={config} terminologie={terminologie}
-              groupesFiges={groupesFiges} onFiger={handleFiger}
-              onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
-              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue}
-              modeReaffectation={modeReaffectation} toutesLesSalles={config.salles}
-              onChangerSalle={(cid, sid) => setReaffectations(prev => ({ ...prev, [cid]: sid }))}
-              sallesDejaChoisies={reaffectations} />
-          })}
-
-          {elevesHorsGroupe.length > 0 && (
-            <div className="card" style={{ border: '2px dashed var(--warning)' }}>
-              <div className="card-title">🚫 {ar ? `تلاميذ بدون قسم (${elevesHorsGroupe.length})` : `Élèves sans groupe (${elevesHorsGroupe.length})`}</div>
-              <div className="alert alert-warning" style={{ marginBottom: 12 }}>
-                {ar ? 'هؤلاء التلاميذ تمت إزالتهم يدوياً. يمكنك إضافتهم إلى قسم أو تركهم في قائمة الانتظار.' : "Ces élèves ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente."}
-              </div>
-              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--paper)' }}>
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>#</th>
-                    {config.champs.filter(c => c.type !== 'computed').map(c => (
-                      <th key={c.id} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)', direction: 'auto' }}>{c.label}</th>
-                    ))}
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'السن' : 'Âge'}</th>
-                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'المستوى المتوافق' : 'Niveau compatible'}</th>
-                    {!lectureSeule && <th style={{ width: 140 }}></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {elevesHorsGroupe.map((e, idx) => {
-                    const niveauCompat = config.reglesAge.find(r => e.age >= r.ageMin && e.age <= r.ageMax)
-                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId, config.reglesAge) : DEFAULT_COLOR
-                    return (
-                      <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
-                        <td style={{ padding: '6px 10px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
-                        {config.champs.filter(ch => ch.type !== 'computed').map(ch => (
-                          <td key={ch.id} style={{ padding: '6px 10px', direction: 'auto' }}>{e[ch.id] || '—'}</td>
-                        ))}
-                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
-                        <td style={{ padding: '6px 10px' }}>
-                          {niveauCompat && <span style={{ background: c.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 700, direction: 'auto' }}>{niveauCompat.label}</span>}
-                        </td>
-                        {!lectureSeule && (
-                          <td style={{ padding: '6px 10px' }}>
-                            <button className="btn btn-success btn-sm" onClick={() => setModalEleve({ eleve: e, niveauActuel: niveauCompat?.niveauId, classeActuelle: null })}>
-                              {ar ? '+ إضافة إلى قسم' : '+ Ajouter à un groupe'}
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="card">
+            <div className="card">
             <div className="card-title">📊 {ar ? 'جدول الملخص' : 'Tableau de synthèse'}</div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
@@ -738,5 +671,72 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           terminologie={terminologie} langue={langue} />
       )}
     </div>
-  )
+
+                    {config.reglesAge.map(r => {
+              const c = getNiveauColor(r.niveauId, config.reglesAge)
+              return <span key={r.niveauId} style={{ background: c.bg, color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 700, direction: 'auto' }}>{r.label}</span>
+            })}
+          </div>
+
+          {config.reglesAge.map(r => {
+            const resRaw = allocation.affectations[r.niveauId]
+            if (!resRaw) return null
+            const res = normaliserRes(resRaw, r.niveauId)
+            return <CarteNiveau key={r.niveauId} niveauId={r.niveauId} label={r.label} res={res}
+              eleves={eleves} config={config} terminologie={terminologie}
+              groupesFiges={groupesFiges} onFiger={handleFiger}
+              onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
+              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue}
+              modeReaffectation={modeReaffectation} toutesLesSalles={config.salles}
+              onChangerSalle={(cid, sid) => setReaffectations(prev => ({ ...prev, [cid]: sid }))}
+              sallesDejaChoisies={reaffectations} />
+          })}
+
+          {elevesHorsGroupe.length > 0 && (
+            <div className="card" style={{ border: '2px dashed var(--warning)' }}>
+              <div className="card-title">🚫 {ar ? `تلاميذ بدون قسم (${elevesHorsGroupe.length})` : `Élèves sans groupe (${elevesHorsGroupe.length})`}</div>
+              <div className="alert alert-warning" style={{ marginBottom: 12 }}>
+                {ar ? 'هؤلاء التلاميذ تمت إزالتهم يدوياً. يمكنك إضافتهم إلى قسم أو تركهم في قائمة الانتظار.' : "Ces élèves ont été retirés manuellement. Vous pouvez les ajouter à un groupe ou les laisser en liste d'attente."}
+              </div>
+              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--paper)' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>#</th>
+                    {config.champs.filter(c => c.type !== 'computed').map(c => (
+                      <th key={c.id} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)', direction: 'auto' }}>{c.label}</th>
+                    ))}
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'السن' : 'Âge'}</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--ink-muted)' }}>{ar ? 'المستوى المتوافق' : 'Niveau compatible'}</th>
+                    {!lectureSeule && <th style={{ width: 140 }}></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {elevesHorsGroupe.map((e, idx) => {
+                    const niveauCompat = config.reglesAge.find(r => e.age >= r.ageMin && e.age <= r.ageMax)
+                    const c = niveauCompat ? getNiveauColor(niveauCompat.niveauId, config.reglesAge) : DEFAULT_COLOR
+                    return (
+                      <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
+                        <td style={{ padding: '6px 10px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
+                        {config.champs.filter(ch => ch.type !== 'computed').map(ch => (
+                          <td key={ch.id} style={{ padding: '6px 10px', direction: 'auto' }}>{e[ch.id] || '—'}</td>
+                        ))}
+                        <td style={{ padding: '6px 10px' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
+                        <td style={{ padding: '6px 10px' }}>
+                          {niveauCompat && <span style={{ background: c.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 700, direction: 'auto' }}>{niveauCompat.label}</span>}
+                        </td>
+                        {!lectureSeule && (
+                          <td style={{ padding: '6px 10px' }}>
+                            <button className="btn btn-success btn-sm" onClick={() => setModalEleve({ eleve: e, niveauActuel: niveauCompat?.niveauId, classeActuelle: null })}>
+                              {ar ? '+ إضافة إلى قسم' : '+ Ajouter à un groupe'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+)
 }
