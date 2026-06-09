@@ -568,6 +568,9 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul} style={{ opacity: calcul ? 0.7 : 1 }}>
               {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ إيجاد توزيع ممكن' : "▶ Trouver une configuration d'affectations")}
             </button>
+            <button className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
+              🖨 {ar ? 'طباعة' : 'Imprimer'}
+            </button>
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
             {allocation && !modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
@@ -801,9 +804,14 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
         <div className="card no-print" style={{ marginTop: 8 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             {!lectureSeule && (
-              <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul}>
-                {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ إيجاد توزيع ممكن' : "▶ Trouver une configuration d'affectations")}
-              </button>
+              <>
+                <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul}>
+                  {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ إيجاد توزيع ممكن' : "▶ Trouver une configuration d'affectations")}
+                </button>
+                <button className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
+                  🖨 {ar ? 'طباعة' : 'Imprimer'}
+                </button>
+              </>
             )}
             {!modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
