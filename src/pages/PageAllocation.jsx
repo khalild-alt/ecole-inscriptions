@@ -530,19 +530,23 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
 
           <div className="card">
             <div className="card-title">📊 {ar ? 'جدول الملخص' : 'Tableau de synthèse'}</div>
-            <div className="table-wrap">
-              <table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
-                  <tr>
-                    <th>{ar ? 'المستوى' : 'Niveau'}</th>
-                    <th>{terminologie.groupe}</th>
-                    <th>{ar ? 'الصّالة' : 'Salle'}</th>
-                    <th>{ar ? 'الاسم الكامل' : 'Nom complet'}</th>
-                    <th>{ar ? 'الطاقة' : 'Capacité'}</th>
-                    <th>{ar ? 'التلاميذ' : 'Élèves'}</th>
-                    <th>{ar ? 'شاغر' : 'Libres'}</th>
-                    <th>{ar ? 'الإشغال' : 'Remplissage'}</th>
-                    {!lectureSeule && <th>{ar ? 'الحالة' : 'État'}</th>}
+                  <tr style={{ background: 'var(--paper2)' }}>
+                    {[
+                      ar ? 'المستوى' : 'Niveau',
+                      ar ? 'فوج' : terminologie.groupe,
+                      ar ? 'الصّالة' : 'Salle',
+                      ar ? 'الاسم الكامل' : 'Nom complet',
+                      ar ? 'الطاقة' : 'Capacité',
+                      ar ? 'التلاميذ' : 'Élèves',
+                      ar ? 'شاغر' : 'Libres',
+                      ar ? 'الإشغال' : 'Remplissage',
+                      ...(!lectureSeule ? [ar ? 'الحالة' : 'État'] : [])
+                    ].map((h, i) => (
+                      <th key={i} style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: 'var(--ink-light)', borderBottom: '2px solid var(--paper3)', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -553,22 +557,31 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                     const couleur = getNiveauColor(r.niveauId, config.reglesAge)
                     return res.classes.map((cls, idx) => {
                       const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
+                      const cap = cls.salle?.capacite || 1
+                      const taux = ((nb / cap) * 100).toFixed(0)
                       return (
-                        <tr key={cls.classeId}>
+                        <tr key={cls.classeId} style={{ background: idx % 2 === 0 ? couleur.light + '55' : 'white', borderBottom: `1px solid ${couleur.badge}33` }}>
                           {idx === 0 && (
-                            <td rowSpan={res.classes.length}>
-                              <span style={{ background: couleur.bg, color: 'white', padding: '3px 12px', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', direction: 'auto' }}>{r.label}</span>
-                              {res.nbAttente > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente} {ar ? 'في الانتظار' : 'en attente'}</div>}
+                            <td rowSpan={res.classes.length} style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle', borderRight: `3px solid ${couleur.bg}` }}>
+                              <span style={{ background: couleur.bg, color: 'white', padding: '4px 12px', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', direction: 'auto', display: 'inline-block' }}>{r.label}</span>
+                              {res.nbAttente > 0 && <div style={{ fontSize: '0.72rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente}</div>}
                             </td>
                           )}
-                          <td style={{ fontWeight: 600 }}>{ar ? `فوج ${cls.classeNum}` : `${terminologie.groupe} ${cls.classeNum}`}</td>
-                          <td><strong>{cls.salle?.nom || '—'}</strong></td>
-                          <td style={{ color: 'var(--ink-muted)', direction: 'auto' }}>{cls.salle?.nomComplet || '—'}</td>
-                          <td>{cls.salle?.capacite || '—'}</td>
-                          <td><span style={{ color: 'var(--success)', fontWeight: 700 }}>{nb}</span></td>
-                          <td><span style={{ color: (cls.salle?.capacite - nb) > 0 ? 'var(--warning)' : 'var(--ink-muted)' }}>{cls.salle ? cls.salle.capacite - nb : '—'}</span></td>
-                          <td><span style={{ fontWeight: 700 }}>{cls.salle ? ((nb / cls.salle.capacite) * 100).toFixed(0) : 0}%</span></td>
-                          {!lectureSeule && <td>{groupesFiges.has(cls.classeId) ? <span style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>🔒</span> : <span style={{ color: 'var(--ink-muted)', fontSize: '0.8rem' }}>—</span>}</td>}
+                          <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: couleur.bg }}>{ar ? `فوج ${cls.classeNum}` : `${terminologie.groupe} ${cls.classeNum}`}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}><strong>{cls.salle?.nom || '—'}</strong></td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--ink-muted)', direction: 'auto' }}>{cls.salle?.nomComplet || '—'}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cap}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}><span style={{ background: couleur.bg, color: 'white', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>{nb}</span></td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}><span style={{ color: (cap - nb) > 0 ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }}>{cap - nb}</span></td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                              <div style={{ width: 40, height: 6, background: 'var(--paper3)', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ width: `${taux}%`, height: '100%', background: couleur.bg, borderRadius: 3 }} />
+                              </div>
+                              <span style={{ fontWeight: 700 }}>{taux}%</span>
+                            </div>
+                          </td>
+                          {!lectureSeule && <td style={{ padding: '10px 12px', textAlign: 'center' }}>{groupesFiges.has(cls.classeId) ? <span style={{ color: couleur.bg, fontSize: '0.8rem' }}>🔒</span> : <span style={{ color: 'var(--ink-muted)', fontSize: '0.8rem' }}>—</span>}</td>}
                         </tr>
                       )
                     })
