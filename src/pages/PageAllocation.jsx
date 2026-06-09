@@ -160,7 +160,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
   )
 }
 
-function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue }) {
+function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminologie, fige, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue, modeReaffectation, toutesLesSalles, onChangerSalle, sallesDejaChoisies }) {
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const elevesGroupe = eleves.filter(e => classe.elevesIds && classe.elevesIds.includes(e.id))
   const terme = terminologie?.groupe || 'Groupe'
@@ -192,7 +192,18 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {!lectureSeule && (
+          {modeReaffectation && toutesLesSalles && (
+            <select value={sallesDejaChoisies?.[classe.classeId] || classe.salle?.id || ''}
+              onChange={e => onChangerSalle(classe.classeId, e.target.value)}
+              style={{ padding: '4px 8px', borderRadius: 6, border: '2px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+              {toutesLesSalles.filter(s => s.capacite >= nbEleves).map(s => (
+                <option key={s.id} value={s.id} style={{ color: '#000', background: 'white' }}>
+                  {s.nom}{s.nomComplet ? ` — ${s.nomComplet}` : ''} ({s.capacite})
+                </option>
+              ))}
+            </select>
+          )}
+          {!lectureSeule && !modeReaffectation && (
             <button className="btn btn-sm"
               style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.78rem' }}
               onClick={() => onFiger(classe.classeId, !fige)}>
@@ -256,7 +267,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
   )
 }
 
-function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, groupesFiges, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue }) {
+function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, groupesFiges, onFiger, onOuvrirModal, onRetirer, lectureSeule, langue, modeReaffectation, toutesLesSalles, onChangerSalle, sallesDejaChoisies }) {
   const couleur = getNiveauColor(niveauId, config.reglesAge)
   const ar = langue === 'ar'
   const terme = terminologie?.groupe || 'Groupe'
@@ -283,7 +294,9 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
             eleves={eleves} config={config} terminologie={terminologie}
             fige={groupesFiges.has(cls.classeId)} onFiger={onFiger}
             onOuvrirModal={onOuvrirModal} onRetirer={onRetirer}
-            lectureSeule={lectureSeule} langue={langue} />
+            lectureSeule={lectureSeule} langue={langue}
+            modeReaffectation={modeReaffectation} toutesLesSalles={toutesLesSalles}
+            onChangerSalle={onChangerSalle} sallesDejaChoisies={sallesDejaChoisies} />
         ))}
 
         {enAttente.length > 0 && (
@@ -344,6 +357,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const [calcul, setCalcul] = useState(false)
   const [modalEleve, setModalEleve] = useState(null)
   const [elevesHorsGroupe, setElevesHorsGroupe] = useState([])
+  const [modeReaffectation, setModeReaffectation] = useState(false)
+  const [reaffectations, setReaffectations] = useState({})
+  const [solutionsAuto, setSolutionsAuto] = useState([])
+  const [indexSolution, setIndexSolution] = useState(-1)
 
   async function handleOptimiser() {
     if (eleves.length === 0) { toast(ar ? 'لا توجد تسجيلات' : 'Aucune inscription à traiter', 'error'); return }
@@ -363,6 +380,91 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
     await supabase.from('allocations').insert({ annee_id: annee.id, affectations: aff, groupes_figes: figes, mode: 'multi', calculated_at: new Date().toISOString() })
     setAllocation({ affectations: aff, mode: 'multi', date: new Date().toISOString(), groupesFiges: figes })
+  }
+
+
+  async function reaffectationAutomatique() {
+    if (!allocation) return
+    const groupes = []
+    for (const res of Object.values(allocation.affectations)) {
+      for (const cls of res.classes || []) {
+        const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
+        groupes.push({ classeId: cls.classeId, nb })
+      }
+    }
+    const salles = [...config.salles].sort((a, b) => a.capacite - b.capacite)
+    const solutions = []
+    function bt(idx, used, aff) {
+      if (solutions.length >= 200) return
+      if (idx === groupes.length) {
+        const vides = aff.reduce((s, a) => s + (salles.find(sl => sl.id === a.sid)?.capacite || 0) - a.nb, 0)
+        solutions.push({ aff: [...aff], vides }); return
+      }
+      for (let i = 0; i < salles.length; i++) {
+        if (!used[i] && salles[i].capacite >= groupes[idx].nb) {
+          used[i] = true
+          aff.push({ classeId: groupes[idx].classeId, sid: salles[i].id, nb: groupes[idx].nb })
+          bt(idx + 1, used, aff); aff.pop(); used[i] = false
+        }
+      }
+    }
+    bt(0, new Array(salles.length).fill(false), [])
+    solutions.sort((a, b) => a.vides - b.vides)
+    if (!solutions.length) { toast(ar ? 'لا توجد حلول ممكنة' : 'Aucune solution possible', 'error'); return }
+    setSolutionsAuto(solutions)
+    const newIdx = indexSolution < 0 ? 0 : (indexSolution + 1) % solutions.length
+    setIndexSolution(newIdx)
+    const map = {}
+    solutions[newIdx].aff.forEach(a => { map[a.classeId] = a.sid })
+    const aff2 = JSON.parse(JSON.stringify(allocation.affectations))
+    for (const res of Object.values(aff2)) {
+      for (const cls of res.classes || []) {
+        const s = config.salles.find(sl => sl.id === map[cls.classeId])
+        if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
+      }
+    }
+    await sauvegarderAllocation(aff2, null)
+    toast(ar ? `⚡ توزيع تلقائي — ${solutions[newIdx].vides} مقعد شاغر (${newIdx+1}/${solutions.length})` : `⚡ Réaffectation auto — ${solutions[newIdx].vides} place(s) vide(s) (${newIdx+1}/${solutions.length})`, 'success')
+  }
+
+  function demarrerReaffectation() {
+    const init = {}
+    if (allocation) {
+      for (const res of Object.values(allocation.affectations)) {
+        for (const cls of res.classes || []) { if (cls.salle) init[cls.classeId] = cls.salle.id }
+      }
+    }
+    setReaffectations(init); setModeReaffectation(true)
+  }
+
+  async function validerReaffectation() {
+    const vals = Object.values(reaffectations)
+    const doublons = vals.filter((s, i) => vals.indexOf(s) !== i)
+    if (doublons.length > 0) {
+      const nom = config.salles.find(s => s.id === doublons[0])?.nom || doublons[0]
+      toast(ar ? `الصّالة ${nom} مستخدمة مرتين` : `Salle ${nom} affectée deux fois`, 'error'); return
+    }
+    for (const [cid, sid] of Object.entries(reaffectations)) {
+      const salle = config.salles.find(s => s.id === sid)
+      if (!salle) continue
+      for (const res of Object.values(allocation.affectations)) {
+        const cls = (res.classes || []).find(c => c.classeId === cid)
+        if (cls) {
+          const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
+          if (salle.capacite < nb) { toast(ar ? `طاقة ${salle.nom} (${salle.capacite}) أقل من التلاميذ (${nb})` : `Capacité de ${salle.nom} (${salle.capacite}) insuffisante pour ${nb} élèves`, 'error'); return }
+        }
+      }
+    }
+    const aff = JSON.parse(JSON.stringify(allocation.affectations))
+    for (const res of Object.values(aff)) {
+      for (const cls of res.classes || []) {
+        const s = config.salles.find(sl => sl.id === reaffectations[cls.classeId])
+        if (s) { cls.salle = s; cls.placesLibres = s.capacite - (cls.elevesIds?.length || 0); cls.tauxRemplissage = (((cls.elevesIds?.length || 0) / s.capacite) * 100).toFixed(1) }
+      }
+    }
+    await sauvegarderAllocation(aff, null)
+    setModeReaffectation(false); setReaffectations({})
+    toast(ar ? '✓ تم التغيير اليدوي' : '✓ Réaffectation manuelle validée', 'success')
   }
 
   async function handleFiger(classeId, figer) {
@@ -440,6 +542,25 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
               {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ حساب التوزيع' : "▶ Calculer l'allocation")}
             </button>
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
+            {allocation && !modeReaffectation && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
+                  ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
+                </button>
+                <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
+                  ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
+                </button>
+              </div>
+            )}
+            {modeReaffectation && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#fef9c3', padding: '8px 14px', borderRadius: 8, border: '2px solid #eab308' }}>
+                <span style={{ fontSize: '0.85rem', color: '#854d0e', fontWeight: 600 }}>
+                  {ar ? '⚠ وضع إعادة التوزيع اليدوي' : '⚠ Mode réaffectation manuelle'}
+                </span>
+                <button className="btn btn-success btn-sm" onClick={validerReaffectation}>✓ {ar ? 'تحقق' : 'Valider'}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setModeReaffectation(false); setReaffectations({}) }}>{ar ? 'إلغاء' : 'Annuler'}</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -478,7 +599,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
               eleves={eleves} config={config} terminologie={terminologie}
               groupesFiges={groupesFiges} onFiger={handleFiger}
               onOuvrirModal={(eleve, niveauActuel, classeActuelle) => setModalEleve({ eleve, niveauActuel, classeActuelle })}
-              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue} />
+              onRetirer={handleRetirer} lectureSeule={lectureSeule} langue={langue}
+              modeReaffectation={modeReaffectation} toutesLesSalles={config.salles}
+              onChangerSalle={(cid, sid) => setReaffectations(prev => ({ ...prev, [cid]: sid }))}
+              sallesDejaChoisies={reaffectations} />
           })}
 
           {elevesHorsGroupe.length > 0 && (
