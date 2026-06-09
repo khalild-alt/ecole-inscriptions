@@ -253,51 +253,60 @@ tr:hover td { background: var(--paper); }
   font-family: var(--font-body), var(--font-arabic);
 }
 
-/* ── CSS Print pour export PDF ── */
+/* ── CSS Print ── */
 @media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  
-  .no-print { display: none !important; }
-  
-  .app-header, .app-tabs, .page-subtitle, .btn, 
-  .toast-container, .alert { display: none !important; }
-  
-  .print-only { display: block !important; }
-  
-  .page { padding: 0 !important; max-width: 100% !important; }
-  
-  body { font-size: 11px; }
-  
-  .print-header {
-    display: flex !important;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 2px solid #1a1a2e;
-    margin-bottom: 20px;
-  }
-  
-  .print-header-title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    color: #1a1a2e;
-  }
-  
-  .print-header-meta {
-    font-size: 10px;
-    color: #666;
-    text-align: right;
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+
+  /* Masquer tout ce qui ne doit pas s'imprimer */
+  .no-print,
+  .app-header,
+  nav,
+  .toast-container,
+  .btn,
+  button,
+  summary { display: none !important; }
+
+  /* Forcer l'ouverture des details */
+  details { display: block !important; }
+  details > *:not(summary) { display: block !important; }
+
+  /* Layout */
+  body { font-size: 11px; background: white !important; }
+  .page { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+  .page-title { font-size: 1.3rem; margin-bottom: 8px; }
+  .page-subtitle { display: none !important; }
+
+  /* Cards */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+    margin-bottom: 12px !important;
+    padding: 12px !important;
   }
 
-  .card { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
-  
-  table { font-size: 10px; }
-  th { background: #1a1a2e !important; color: white !important; }
-  
-  .alloc-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  
+  /* Stats */
+  .stats-row { gap: 8px !important; }
+  .stat-card { padding: 10px 14px !important; min-width: 100px !important; }
+  .stat-value { font-size: 1.6rem !important; }
+
+  /* Tableaux */
+  table { font-size: 9px !important; border-collapse: collapse !important; width: 100% !important; }
+  th { padding: 6px 8px !important; font-size: 8px !important; background: #2d3923 !important; color: white !important; }
+  td { padding: 5px 8px !important; border-bottom: 1px solid #ddd !important; }
+  tr { break-inside: avoid; }
+
+  /* Couleurs de fond des tableaux — forcer l'impression */
+  tr[style*="background"] { -webkit-print-color-adjust: exact !important; }
+
+  /* Groupes allocation */
+  details { break-inside: avoid; }
+
+  /* Nouvelle page si besoin */
+  .card-title { break-after: avoid; }
+
   @page {
-    margin: 1.5cm;
+    margin: 1.2cm;
     size: A4 landscape;
   }
 }

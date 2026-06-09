@@ -458,9 +458,14 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
               {ar ? 'تم الحساب بتاريخ' : 'Calculé le'} {new Date(allocation.date).toLocaleString('fr-FR')}
             </span>
-            <button className="btn btn-success" onClick={() => exporterAllocationExcel(allocation, eleves, config, terminologie)}>
-              📊 {ar ? 'تصدير النتيجة (Excel)' : 'Exporter le résultat (Excel)'}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-success" onClick={() => exporterAllocationExcel(allocation, eleves, config, terminologie)}>
+                📊 {ar ? 'تصدير النتيجة (Excel)' : 'Exporter le résultat (Excel)'}
+              </button>
+              <button className="btn btn-secondary no-print" onClick={() => window.print()}>
+                🖨 {ar ? 'طباعة' : 'Imprimer'}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
