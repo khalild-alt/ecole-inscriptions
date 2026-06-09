@@ -268,7 +268,7 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
       <div style={{ background: couleur.light, padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${couleur.badge}44` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ background: couleur.bg, color: 'white', borderRadius: 8, padding: '4px 16px', fontWeight: 700, fontSize: '0.95rem', direction: 'auto' }}>{label}</span>
-          <span style={{ fontSize: '0.85rem', color: couleur.text }}>{res.classes.length} {ar ? 'أقسام' : `${terme}${res.classes.length > 1 ? 's' : ''}`}</span>
+          <span style={{ fontSize: '0.85rem', color: couleur.text }}>{res.classes.length} {ar ? (res.classes.length > 1 ? 'أقسام' : 'قسم') : `${terme}${res.classes.length > 1 ? 's' : ''}`}</span>
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: '0.85rem', flexWrap: 'wrap' }}>
           <span style={{ color: couleur.text }}>{elevesNiveau.length} {ar ? 'طلب' : 'demandes'}</span>
@@ -561,7 +561,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                               {res.nbAttente > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 4 }}>⏳ {res.nbAttente} {ar ? 'في الانتظار' : 'en attente'}</div>}
                             </td>
                           )}
-                          <td style={{ fontWeight: 600 }}>{terminologie.groupe} {cls.classeNum}</td>
+                          <td style={{ fontWeight: 600 }}>{ar ? `فوج ${cls.classeNum}` : `${terminologie.groupe} ${cls.classeNum}`}</td>
                           <td><strong>{cls.salle?.nom || '—'}</strong></td>
                           <td style={{ color: 'var(--ink-muted)', direction: 'auto' }}>{cls.salle?.nomComplet || '—'}</td>
                           <td>{cls.salle?.capacite || '—'}</td>
