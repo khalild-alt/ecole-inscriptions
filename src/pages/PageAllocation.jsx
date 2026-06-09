@@ -366,6 +366,8 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     if (eleves.length === 0) { toast(ar ? 'لا توجد تسجيلات' : 'Aucune inscription à traiter', 'error'); return }
     setCalcul(true)
     setElevesHorsGroupe([])
+    setSolutionsAuto([])
+    setIndexSolution(-1)
     try {
       await lancerOptimisation()
       toast(ar ? 'تم حساب التوزيع' : 'Allocation calculée', 'success')
@@ -545,18 +547,18 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
         <div className="card">
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul} style={{ opacity: calcul ? 0.7 : 1 }}>
-              {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ حساب التوزيع' : "▶ Calculer l'allocation")}
+              {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ إيجاد توزيع ممكن' : "▶ Trouver une configuration d'affectations")}
             </button>
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
             {allocation && !modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
                 {solutionsAuto.length > 1 && (
                   <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
-                    ⏮ {ar ? 'السابق' : 'Précédent'}
+                    ⏮ {ar ? 'التوزيع السابق' : 'Configuration précédente'}
                   </button>
                 )}
                 <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
-                  ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
+                  ⚡ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${indexSolution+1}/${solutionsAuto.length})` : `Prochaine configuration possible (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
                 </button>
                 <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
                   ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
@@ -664,7 +666,11 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           )}
 
           <div className="card">
-            <div className="card-title">📊 {ar ? 'جدول الملخص' : 'Tableau de synthèse'}</div>
+            <div className="card-title">
+              📊 {ar
+                ? (solutionsAuto.length > 0 ? `جدول الملخص : التوزيع ${indexSolution + 1} من ${solutionsAuto.length}` : 'جدول الملخص')
+                : (solutionsAuto.length > 0 ? `Tableau de synthèse : configuration ${indexSolution + 1} parmi ${solutionsAuto.length}` : 'Tableau de synthèse')}
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
@@ -746,18 +752,18 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             {!lectureSeule && (
               <button className="btn btn-primary btn-xl" onClick={handleOptimiser} disabled={eleves.length === 0 || calcul}>
-                {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ حساب التوزيع' : "▶ Calculer l'allocation")}
+                {calcul ? (ar ? '⏳ جاري الحساب…' : '⏳ Calcul en cours…') : (ar ? '▶ إيجاد توزيع ممكن' : "▶ Trouver une configuration d'affectations")}
               </button>
             )}
             {!modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
                 {solutionsAuto.length > 1 && (
                   <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
-                    ⏮ {ar ? 'السابق' : 'Précédent'}
+                    ⏮ {ar ? 'التوزيع السابق' : 'Configuration précédente'}
                   </button>
                 )}
                 <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
-                  ⚡ {solutionsAuto.length > 0 ? (ar ? `حل تلقائي (${indexSolution+1}/${solutionsAuto.length})` : `Solution auto (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Réaffectation automatique')}
+                  ⚡ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${indexSolution+1}/${solutionsAuto.length})` : `Prochaine configuration possible (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
                 </button>
                 <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
                   ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
