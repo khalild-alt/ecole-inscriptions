@@ -192,7 +192,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {modeReaffectation && toutesLesSalles && (
+          {modeReaffectation && toutesLesSalles && !fige && (
             <select value={sallesDejaChoisies?.[classe.classeId] || classe.salle?.id || ''}
               onChange={e => onChangerSalle(classe.classeId, e.target.value)}
               style={{ padding: '4px 8px', borderRadius: 6, border: '2px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -404,20 +404,38 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
 
   async function reaffectationAutomatique() {
     if (!allocation) return
+
+    // Séparer groupes figés (salle fixe) et groupes libres
+    const groupesFigesArr = []
     const groupes = []
     for (const res of Object.values(allocation.affectations)) {
       for (const cls of res.classes || []) {
         const nb = eleves.filter(e => cls.elevesIds?.includes(e.id)).length
-        groupes.push({ classeId: cls.classeId, nb })
+        if (groupesFiges.has(cls.classeId)) {
+          // Groupe figé : sa salle est réservée, on ne la touche pas
+          groupesFigesArr.push({ classeId: cls.classeId, sid: cls.salle?.id, nb })
+        } else {
+          groupes.push({ classeId: cls.classeId, nb })
+        }
       }
     }
-    const salles = [...config.salles].sort((a, b) => a.capacite - b.capacite)
+
+    // Salles déjà réservées par les groupes figés
+    const sallesReservees = new Set(groupesFigesArr.map(g => g.sid).filter(Boolean))
+
+    // Pool de salles disponibles pour le backtracking (hors salles figées)
+    const salles = [...config.salles]
+      .filter(s => !sallesReservees.has(s.id))
+      .sort((a, b) => a.capacite - b.capacite)
+
     const solutions = []
     function bt(idx, used, aff) {
       if (solutions.length >= 200) return
       if (idx === groupes.length) {
-        const vides = aff.reduce((s, a) => s + (salles.find(sl => sl.id === a.sid)?.capacite || 0) - a.nb, 0)
-        solutions.push({ aff: [...aff], vides }); return
+        // Ajouter les affectations figées à chaque solution
+        const affComplete = [...aff, ...groupesFigesArr]
+        const vides = affComplete.reduce((s, a) => s + (config.salles.find(sl => sl.id === a.sid)?.capacite || 0) - a.nb, 0)
+        solutions.push({ aff: affComplete, vides }); return
       }
       for (let i = 0; i < salles.length; i++) {
         if (!used[i] && salles[i].capacite >= groupes[idx].nb) {
@@ -723,17 +741,18 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                       const cap = cls.salle?.capacite || 1
                       const taux = ((nb / cap) * 100).toFixed(0)
                       // Logique +/-
-                      const autresClasses = res.classes.filter(c => c.classeId !== cls.classeId)
+                      const estFige = groupesFiges.has(cls.classeId)
+                      const autresClasses = res.classes.filter(c => c.classeId !== cls.classeId && !groupesFiges.has(c.classeId))
                       const nbFn = c => eleves.filter(e => c.elevesIds?.includes(e.id)).length
-                      // + : salle pas pleine ET un autre groupe a des élèves à donner
+                      // + : groupe non figé, salle pas pleine ET un autre groupe non figé a des élèves à donner
                       const donneur = autresClasses.filter(c => nbFn(c) > 0).sort((a, b) => nbFn(b) - nbFn(a))[0]
-                      const canPlus = nb < cap && !!donneur
-                      // - : ce groupe a des élèves ET un autre groupe a de la place
+                      const canPlus = !estFige && nb < cap && !!donneur
+                      // - : groupe non figé, a des élèves ET un autre groupe non figé a de la place
                       const receveur = autresClasses.filter(c => {
                         const capC = c.salle?.capacite || 1
                         return nbFn(c) < capC
                       }).sort((a, b) => nbFn(a) - nbFn(b))[0]
-                      const canMoins = nb > 0 && !!receveur
+                      const canMoins = !estFige && nb > 0 && !!receveur
                       const btnBase = { border: 'none', borderRadius: 6, width: 22, height: 22, fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 0.15s' }
                       return (
                         <tr key={cls.classeId} style={{ background: couleur.light + '88', borderBottom: `1px solid ${couleur.badge}44` }}>
