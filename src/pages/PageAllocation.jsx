@@ -1,5 +1,5 @@
 // src/pages/PageAllocation.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp, DEFAULT_CONFIG } from '../store/appStore'
 import { useToast } from '../components/Toast'
 import { useI18n } from '../i18n/useI18n'
@@ -345,7 +345,9 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
 }
 
 export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
-  const { config, eleves, setEleves, allocation, setAllocation, lancerOptimisation, annee } = useApp()
+  const { config, eleves, setEleves, allocation, setAllocation, lancerOptimisation, annee,
+    chargerSauvegardesAllocations, sauvegarderAllocationNommee, renommerSauvegardeAllocation,
+    supprimerSauvegardeAllocation, chargerSauvegardeAllocation } = useApp()
   const { langue } = useI18n()
   const toast = useToast()
   const terminologie = config.terminologie || DEFAULT_CONFIG.terminologie || { groupe: 'Groupe', annee: 'Année' }
@@ -361,6 +363,60 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const [reaffectations, setReaffectations] = useState({})
   const [solutionsAuto, setSolutionsAuto] = useState([])
   const [indexSolution, setIndexSolution] = useState(-1)
+
+  // ── Sauvegardes nommées d'allocations ──
+  const [sauvegardesAllocations, setSauvegardesAllocations] = useState([])
+  const [sauvegardeSelectionnee, setSauvegardeSelectionnee] = useState('')
+  const [savingSnapshot, setSavingSnapshot] = useState(false)
+
+  async function rafraichirSauvegardes() {
+    const data = await chargerSauvegardesAllocations()
+    setSauvegardesAllocations(data)
+  }
+
+  useEffect(() => { if (annee) rafraichirSauvegardes() }, [annee])
+
+  async function handleSauvegarderNommee() {
+    if (!allocation) return
+    const nom = window.prompt(ar ? 'اسم هذا التوزيع :' : 'Nom de cette configuration :', `${ar ? 'توزيع' : 'Configuration'} ${new Date().toLocaleDateString('fr-FR')}`)
+    if (!nom || !nom.trim()) return
+    setSavingSnapshot(true)
+    const res = await sauvegarderAllocationNommee(nom.trim())
+    setSavingSnapshot(false)
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    toast(ar ? `✓ تم حفظ "${nom.trim()}"` : `✓ "${nom.trim()}" sauvegardé`, 'success')
+    await rafraichirSauvegardes()
+  }
+
+  async function handleChargerSauvegarde(id) {
+    if (!id) return
+    const res = await chargerSauvegardeAllocation(id)
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    const { affectations, groupes_figes, mode } = res.data
+    await sauvegarderAllocation(affectations, new Set(groupes_figes || []))
+    setGroupesFiges(new Set(groupes_figes || []))
+    setSolutionsAuto([])
+    setIndexSolution(-1)
+    toast(ar ? '✓ تم استرجاع التوزيع' : '✓ Configuration restaurée', 'success')
+  }
+
+  async function handleRenommerSauvegarde(id, ancienNom) {
+    const nouveauNom = window.prompt(ar ? 'الاسم الجديد :' : 'Nouveau nom :', ancienNom)
+    if (!nouveauNom || !nouveauNom.trim() || nouveauNom.trim() === ancienNom) return
+    const res = await renommerSauvegardeAllocation(id, nouveauNom.trim())
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    toast(ar ? '✓ تم تغيير الاسم' : '✓ Nom modifié', 'success')
+    await rafraichirSauvegardes()
+  }
+
+  async function handleSupprimerSauvegarde(id, nom) {
+    if (!window.confirm(ar ? `حذف "${nom}" ؟` : `Supprimer "${nom}" ?`)) return
+    const res = await supprimerSauvegardeAllocation(id)
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    if (sauvegardeSelectionnee === id) setSauvegardeSelectionnee('')
+    toast(ar ? '✓ تم الحذف' : '✓ Supprimé', 'success')
+    await rafraichirSauvegardes()
+  }
 
   async function handleOptimiser() {
     if (eleves.length === 0) { toast(ar ? 'لا توجد تسجيلات' : 'Aucune inscription à traiter', 'error'); return }
@@ -614,6 +670,47 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                 </span>
                 <button className="btn btn-success btn-sm" onClick={validerReaffectation}>✓ {ar ? 'تحقق' : 'Valider'}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setModeReaffectation(false); setReaffectations({}) }}>{ar ? 'إلغاء' : 'Annuler'}</button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Sauvegardes nommées d'allocations ── */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border, #e5e7eb)' }}>
+            {allocation && (
+              <button className="btn btn-secondary btn-sm" onClick={handleSauvegarderNommee} disabled={savingSnapshot}>
+                💾 {savingSnapshot ? (ar ? 'جارٍ الحفظ…' : 'Sauvegarde…') : (ar ? 'حفظ هذا التوزيع' : 'Sauvegarder cette configuration')}
+              </button>
+            )}
+            {sauvegardesAllocations.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>
+                  {ar ? 'التوزيعات المحفوظة :' : 'Configurations sauvegardées :'}
+                </span>
+                <select
+                  value={sauvegardeSelectionnee}
+                  onChange={e => setSauvegardeSelectionnee(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border, #ccc)', fontSize: '0.85rem', direction: 'auto' }}>
+                  <option value="">{ar ? '— اختر —' : '— Choisir —'}</option>
+                  {sauvegardesAllocations.map(s => (
+                    <option key={s.id} value={s.id}>{s.nom} ({new Date(s.created_at).toLocaleDateString('fr-FR')})</option>
+                  ))}
+                </select>
+                {sauvegardeSelectionnee && (() => {
+                  const s = sauvegardesAllocations.find(x => x.id === sauvegardeSelectionnee)
+                  return (
+                    <>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleChargerSauvegarde(sauvegardeSelectionnee)}>
+                        ↩ {ar ? 'استرجاع' : 'Charger'}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" title={ar ? 'إعادة تسمية' : 'Renommer'} onClick={() => handleRenommerSauvegarde(sauvegardeSelectionnee, s?.nom)}>
+                        ✏️
+                      </button>
+                      <button className="btn btn-ghost btn-sm" title={ar ? 'حذف' : 'Supprimer'} onClick={() => handleSupprimerSauvegarde(sauvegardeSelectionnee, s?.nom)} style={{ color: 'var(--danger, #dc2626)' }}>
+                        🗑
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             )}
           </div>

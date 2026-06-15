@@ -432,8 +432,54 @@ export function AppProvider({ children }) {
   // ── incrementerModifs (no-op simplifié) ──
   const incrementerModifs = useCallback(async () => {}, [])
 
+  // ── Sauvegardes nommées d'allocations ──
+  const chargerSauvegardesAllocations = useCallback(async () => {
+    if (!annee) return []
+    const { data, error } = await supabase
+      .from('allocations_sauvegardees')
+      .select('id, nom, created_at, updated_at')
+      .eq('annee_id', annee.id)
+      .order('created_at', { ascending: false })
+    if (error) { console.error(error); return [] }
+    return data || []
+  }, [annee])
+
+  const sauvegarderAllocationNommee = useCallback(async (nom) => {
+    if (!annee || !allocation) return { error: 'Aucune allocation à sauvegarder' }
+    const { data, error } = await supabase.from('allocations_sauvegardees').insert({
+      annee_id: annee.id,
+      etablissement_id: annee.etablissement_id,
+      nom,
+      affectations: allocation.affectations,
+      groupes_figes: allocation.groupesFiges || [],
+      mode: allocation.mode || 'multi',
+    }).select().single()
+    if (error) return { error: error.message }
+    return { data }
+  }, [annee, allocation])
+
+  const renommerSauvegardeAllocation = useCallback(async (id, nouveauNom) => {
+    const { error } = await supabase.from('allocations_sauvegardees')
+      .update({ nom: nouveauNom, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) return { error: error.message }
+    return { success: true }
+  }, [])
+
+  const supprimerSauvegardeAllocation = useCallback(async (id) => {
+    const { error } = await supabase.from('allocations_sauvegardees').delete().eq('id', id)
+    if (error) return { error: error.message }
+    return { success: true }
+  }, [])
+
+  const chargerSauvegardeAllocation = useCallback(async (id) => {
+    const { data, error } = await supabase.from('allocations_sauvegardees').select('*').eq('id', id).single()
+    if (error || !data) return { error: error?.message || 'Sauvegarde introuvable' }
+    return { data }
+  }, [])
+
   return (
-    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, ajouterElevesBatch, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs }}>
+    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, ajouterElevesBatch, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs, chargerSauvegardesAllocations, sauvegarderAllocationNommee, renommerSauvegardeAllocation, supprimerSauvegardeAllocation, chargerSauvegardeAllocation }}>
       {children}
     </AppContext.Provider>
   )
