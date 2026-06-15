@@ -392,8 +392,8 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     if (!id) return
     const res = await chargerSauvegardeAllocation(id)
     if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
-    const { affectations, groupes_figes, mode } = res.data
-    await sauvegarderAllocation(affectations, new Set(groupes_figes || []))
+    const { affectations, groupes_figes, nom } = res.data
+    await sauvegarderAllocation(affectations, new Set(groupes_figes || []), id, nom)
     setGroupesFiges(new Set(groupes_figes || []))
     setSolutionsAuto([])
     setIndexSolution(-1)
@@ -431,13 +431,14 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     setCalcul(false)
   }
 
-  async function sauvegarderAllocation(nouvellesAffectations, nouveauxFiges) {
+  async function sauvegarderAllocation(nouvellesAffectations, nouveauxFiges, sauvegardeActiveId, sauvegardeActiveNom) {
     if (!annee?.id) return
     const aff = nouvellesAffectations || allocation.affectations
     const figes = Array.from(nouveauxFiges || groupesFiges)
+    const activeId = sauvegardeActiveId !== undefined ? sauvegardeActiveId : null
     await supabase.from('allocations').delete().eq('annee_id', annee.id)
-    await supabase.from('allocations').insert({ annee_id: annee.id, affectations: aff, groupes_figes: figes, mode: 'multi', calculated_at: new Date().toISOString() })
-    setAllocation({ affectations: aff, mode: 'multi', date: new Date().toISOString(), groupesFiges: figes })
+    await supabase.from('allocations').insert({ annee_id: annee.id, affectations: aff, groupes_figes: figes, mode: 'multi', calculated_at: new Date().toISOString(), sauvegarde_active_id: activeId })
+    setAllocation({ affectations: aff, mode: 'multi', date: new Date().toISOString(), groupesFiges: figes, sauvegardeActiveId: activeId, sauvegardeActiveNom: activeId ? (sauvegardeActiveNom || null) : null })
   }
 
 
@@ -806,9 +807,16 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
 
           <div className="card">
             <div className="card-title">
-              📊 {ar
-                ? (solutionsAuto.length > 0 ? `جدول الملخص : التوزيع ${indexSolution + 1} من ${solutionsAuto.length}` : 'جدول الملخص')
-                : (solutionsAuto.length > 0 ? `Tableau de synthèse : configuration ${indexSolution + 1} parmi ${solutionsAuto.length}` : 'Tableau de synthèse')}
+              {(() => {
+                const nomDefaut = ar
+                  ? `توزيع ${allocation.date ? new Date(allocation.date).toLocaleDateString('fr-FR') : ''}`
+                  : `Configuration du ${allocation.date ? new Date(allocation.date).toLocaleDateString('fr-FR') : ''}`
+                const nomAffiche = allocation.sauvegardeActiveNom || nomDefaut
+                const suffixe = ar
+                  ? (solutionsAuto.length > 0 ? ` — جدول الملخص : التوزيع ${indexSolution + 1} من ${solutionsAuto.length}` : ' — جدول الملخص')
+                  : (solutionsAuto.length > 0 ? ` — Tableau de synthèse : configuration ${indexSolution + 1} parmi ${solutionsAuto.length}` : ' — Tableau de synthèse')
+                return `📊 ${nomAffiche}${suffixe}`
+              })()}
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>

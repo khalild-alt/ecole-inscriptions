@@ -270,7 +270,14 @@ export function AppProvider({ children }) {
         return new Date(a.dateInscription) - new Date(b.dateInscription)
       }))
     const { data: alloc } = await supabase.from('allocations').select('*').eq('annee_id', anneeObj.id).order('calculated_at', { ascending: false }).limit(1).maybeSingle()
-    if (alloc) setAllocation({ affectations: alloc.affectations, mode: alloc.mode, date: alloc.calculated_at, groupesFiges: alloc.groupes_figes || [] })
+    if (alloc) {
+      let nomSauvegarde = null
+      if (alloc.sauvegarde_active_id) {
+        const { data: snap } = await supabase.from('allocations_sauvegardees').select('nom').eq('id', alloc.sauvegarde_active_id).maybeSingle()
+        nomSauvegarde = snap?.nom || null
+      }
+      setAllocation({ affectations: alloc.affectations, mode: alloc.mode, date: alloc.calculated_at, groupesFiges: alloc.groupes_figes || [], sauvegardeActiveId: alloc.sauvegarde_active_id || null, sauvegardeActiveNom: nomSauvegarde })
+    }
     setDbLoading(false)
   }, [])
 
@@ -455,6 +462,9 @@ export function AppProvider({ children }) {
       mode: allocation.mode || 'multi',
     }).select().single()
     if (error) return { error: error.message }
+    // Marquer cette sauvegarde comme étant l'allocation active
+    await supabase.from('allocations').update({ sauvegarde_active_id: data.id }).eq('annee_id', annee.id)
+    setAllocation(prev => prev ? { ...prev, sauvegardeActiveId: data.id, sauvegardeActiveNom: nom } : prev)
     return { data }
   }, [annee, allocation])
 
@@ -463,12 +473,14 @@ export function AppProvider({ children }) {
       .update({ nom: nouveauNom, updated_at: new Date().toISOString() })
       .eq('id', id)
     if (error) return { error: error.message }
+    setAllocation(prev => (prev && prev.sauvegardeActiveId === id) ? { ...prev, sauvegardeActiveNom: nouveauNom } : prev)
     return { success: true }
   }, [])
 
   const supprimerSauvegardeAllocation = useCallback(async (id) => {
     const { error } = await supabase.from('allocations_sauvegardees').delete().eq('id', id)
     if (error) return { error: error.message }
+    setAllocation(prev => (prev && prev.sauvegardeActiveId === id) ? { ...prev, sauvegardeActiveId: null, sauvegardeActiveNom: null } : prev)
     return { success: true }
   }, [])
 
