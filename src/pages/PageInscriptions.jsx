@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 // src/pages/PageInscriptions.jsx
 import * as XLSX from 'xlsx'
 import { useApp, calculerAge, determinerNiveau } from '../store/appStore'
@@ -44,6 +44,21 @@ function FormulaireIndividuel({ eleveAEditer, onAnnulerEdition }) {
   })
   const [saving, setSaving] = useState(false)
   const modeEdition = !!eleveAEditer
+
+  // Resynchronise le formulaire quand eleveAEditer change (ouvrir une autre édition)
+  useEffect(() => {
+    if (eleveAEditer) {
+      setForm(Object.fromEntries(config.champs.filter(c => c.type !== 'computed').map(c => [c.id, eleveAEditer[c.id] || ''])))
+      const age = calculerAge(eleveAEditer.dateNaissance, config.modeCalculAge)
+      const niveauId = determinerNiveau(age, config.reglesAge)
+      setPreview(age !== null ? { age, niveauId, niveauLabel: getNiveauLabel(niveauId, config.reglesAge) } : null)
+      setErrors({})
+    } else {
+      setForm({})
+      setPreview(null)
+      setErrors({})
+    }
+  }, [eleveAEditer])
 
   function handleChange(id, val) {
     setForm(prev => ({ ...prev, [id]: val }))
