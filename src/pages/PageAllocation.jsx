@@ -592,13 +592,13 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
             {allocation && !modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
-                {solutionsAuto.length > 1 && (
-                  <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
-                    ⏮ {ar ? 'التوزيع السابق' : 'Configuration précédente'}
-                  </button>
-                )}
-                <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
-                  ⚡ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${indexSolution+1}/${solutionsAuto.length})` : `Prochaine configuration possible (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
+                <button className="btn btn-primary" style={{ fontWeight: 700, opacity: solutionsAuto.length > 1 ? 1 : 0.5, cursor: solutionsAuto.length > 1 ? 'pointer' : 'not-allowed' }}
+                  disabled={solutionsAuto.length <= 1}
+                  onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
+                  ⏮ {solutionsAuto.length > 0 ? (ar ? `التوزيع السابق (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})` : `Configuration précédente (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})`) : (ar ? 'التوزيع السابق' : 'Configuration précédente')}
+                </button>
+                <button className="btn btn-primary" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
+                  ⏭ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})` : `Prochaine configuration possible (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
                 </button>
                 <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
                   ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
@@ -834,13 +834,13 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             )}
             {!modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
-                {solutionsAuto.length > 1 && (
-                  <button className="btn btn-secondary" style={{ fontWeight: 700 }} onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
-                    ⏮ {ar ? 'التوزيع السابق' : 'Configuration précédente'}
-                  </button>
-                )}
-                <button className="btn btn-info" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
-                  ⚡ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${indexSolution+1}/${solutionsAuto.length})` : `Prochaine configuration possible (${indexSolution+1}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
+                <button className="btn btn-primary" style={{ fontWeight: 700, opacity: solutionsAuto.length > 1 ? 1 : 0.5, cursor: solutionsAuto.length > 1 ? 'pointer' : 'not-allowed' }}
+                  disabled={solutionsAuto.length <= 1}
+                  onClick={() => appliquerSolution((indexSolution - 1 + solutionsAuto.length) % solutionsAuto.length)}>
+                  ⏮ {solutionsAuto.length > 0 ? (ar ? `التوزيع السابق (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})` : `Configuration précédente (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})`) : (ar ? 'التوزيع السابق' : 'Configuration précédente')}
+                </button>
+                <button className="btn btn-primary" style={{ fontWeight: 700 }} onClick={reaffectationAutomatique}>
+                  ⏭ {solutionsAuto.length > 0 ? (ar ? `التوزيع التالي (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})` : `Prochaine configuration possible (${Math.max(1, indexSolution+1)}/${solutionsAuto.length})`) : (ar ? 'توزيع تلقائي للصّالات' : 'Prochaine configuration possible')}
                 </button>
                 <button className="btn btn-warning" style={{ fontWeight: 700 }} onClick={demarrerReaffectation}>
                   ✏️ {ar ? 'تغيير يدوي للصّالات' : 'Réaffectation manuelle'}
