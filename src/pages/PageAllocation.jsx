@@ -385,9 +385,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   }
 
 
-  async function appliquerSolution(idx) {
-    if (!solutionsAuto.length) return
-    const sol = solutionsAuto[idx]
+  async function appliquerSolution(idx, solutionsOverride) {
+    const sols = solutionsOverride || solutionsAuto
+    if (!sols.length) return
+    const sol = sols[idx]
     const map = {}
     sol.aff.forEach(a => { map[a.classeId] = a.sid })
     const aff2 = JSON.parse(JSON.stringify(allocation.affectations))
@@ -399,7 +400,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     }
     await sauvegarderAllocation(aff2, null)
     setIndexSolution(idx)
-    toast(ar ? `⚡ حل ${idx+1}/${solutionsAuto.length} — ${sol.vides} مقعد شاغر` : `⚡ Solution ${idx+1}/${solutionsAuto.length} — ${sol.vides} place(s) vide(s)`, 'success')
+    toast(ar ? `⚡ حل ${idx+1}/${sols.length} — ${sol.vides} مقعد شاغر` : `⚡ Solution ${idx+1}/${sols.length} — ${sol.vides} place(s) vide(s)`, 'success')
   }
 
   async function reaffectationAutomatique() {
@@ -448,9 +449,10 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     bt(0, new Array(salles.length).fill(false), [])
     solutions.sort((a, b) => a.vides - b.vides)
     if (!solutions.length) { toast(ar ? 'لا توجد حلول ممكنة' : 'Aucune solution possible', 'error'); return }
-    setSolutionsAuto(solutions)
     const newIdx = indexSolution < 0 ? 0 : (indexSolution + 1) % solutions.length
-    await appliquerSolution(newIdx)
+    setSolutionsAuto(solutions)
+    setIndexSolution(newIdx)
+    await appliquerSolution(newIdx, solutions)
   }
 
   function demarrerReaffectation() {
