@@ -223,11 +223,30 @@ tr:hover td { background: var(--paper); }
   opacity: 0.85;
 }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--paper2); }
-::-webkit-scrollbar-thumb { background: var(--paper3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+/* ── Scrollbar ── plus visible, surtout utile sous Windows où le scroll horizontal est peu intuitif */
+* {
+  scrollbar-width: auto;              /* Firefox : scrollbar de taille normale, toujours visible */
+  scrollbar-color: var(--accent2) var(--paper2);
+}
+
+::-webkit-scrollbar { width: 14px; height: 14px; }
+::-webkit-scrollbar-track { background: var(--paper2); border-radius: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--accent2);
+  border-radius: 8px;
+  border: 3px solid var(--paper2); /* crée un effet de "pilule" avec marge interne */
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-corner { background: var(--paper2); }
+
+/* Empêche le geste de scroll horizontal de déclencher la navigation
+   "page précédente / page suivante" du navigateur (notamment sous macOS trackpad) */
+html, body {
+  overscroll-behavior-x: contain;
+}
+.table-wrap, .scroll-x {
+  overscroll-behavior-x: contain;
+}
 
 /* ── Responsive ── */
 @media (max-width: 768px) {

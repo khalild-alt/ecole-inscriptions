@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import ScrollArrows from '../components/ScrollArrows'
 // src/pages/PageInscriptions.jsx
 import * as XLSX from 'xlsx'
 import { useApp, calculerAge, determinerNiveau } from '../store/appStore'
@@ -455,7 +456,7 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
           {eleves.length === 0 ? ti.aucune_inscr : ti.aucun_filtre}
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 500, border: '1px solid var(--paper3)', borderRadius: 'var(--radius)' }}>
+        <ScrollArrows vertical maxHeight={500} style={{ border: '1px solid var(--paper3)', borderRadius: 'var(--radius)' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
               <tr>
@@ -544,7 +545,7 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArrows>
       )}
     </div>
   )

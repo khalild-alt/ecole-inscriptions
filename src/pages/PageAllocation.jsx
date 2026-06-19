@@ -1,5 +1,6 @@
 // src/pages/PageAllocation.jsx
 import { useState, useEffect } from 'react'
+import ScrollArrows from '../components/ScrollArrows'
 import { useApp, DEFAULT_CONFIG } from '../store/appStore'
 import { useToast } from '../components/Toast'
 import { useI18n } from '../i18n/useI18n'
@@ -225,7 +226,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           <summary style={{ cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6 }}>
             👥 {nbEleves} {ar ? 'تلميذ' : 'élève'}{nbEleves > 1 && !ar ? 's' : ''} ▾
           </summary>
-          <div style={{ overflowX: 'auto', maxHeight: 260, overflowY: 'auto' }}>
+          <ScrollArrows vertical maxHeight={260}>
             <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
               <thead style={{ position: 'sticky', top: 0, background: couleur.light }}>
                 <tr>
@@ -260,7 +261,7 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArrows>
         </details>
       </div>
     </div>
@@ -818,7 +819,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                 return `📊 ${nomAffiche}${suffixe}`
               })()}
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <ScrollArrows>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ background: 'var(--paper2)' }}>
@@ -908,7 +909,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollArrows>
           </div>
         </>
       ) : (
