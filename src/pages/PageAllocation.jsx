@@ -360,6 +360,8 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   const [calcul, setCalcul] = useState(false)
   const [modalEleve, setModalEleve] = useState(null)
   const [elevesHorsGroupe, setElevesHorsGroupe] = useState([])
+  const [corbeilleRetraits, setCorbeilleRetraits] = useState([])
+  const [afficherCorbeilleAllocation, setAfficherCorbeilleAllocation] = useState(false)
   const [modeReaffectation, setModeReaffectation] = useState(false)
   const [reaffectations, setReaffectations] = useState({})
   const [solutionsAuto, setSolutionsAuto] = useState([])
@@ -376,6 +378,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   }
 
   useEffect(() => { if (annee) rafraichirSauvegardes() }, [annee])
+  useEffect(() => { if (annee) rafraichirCorbeilleRetraits() }, [annee])
 
   async function handleSauvegarderNommee() {
     if (!allocation) return
@@ -562,6 +565,9 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
   }
 
   async function handleRetirer(eleveId, classeId, niveauId) {
+    const eleve = eleves.find(e => e.id === eleveId)
+    const nomComplet = eleve ? `${eleve.prenom} ${eleve.nom}` : ''
+    if (!window.confirm(ar ? `إزالة ${nomComplet} من هذا القسم ؟` : `Retirer ${nomComplet} de ce groupe ?`)) return
     const aff = JSON.parse(JSON.stringify(allocation.affectations))
     for (const res of Object.values(aff)) {
       for (const cls of res.classes || []) {
@@ -571,12 +577,53 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     for (const [nId, res] of Object.entries(aff)) {
       if (res.classes) res.nbAcceptes = res.classes.reduce((s, c) => s + (c.elevesIds?.length || 0), 0)
     }
-    await supabase.from('eleves').update({ statut: 'liste_attente' }).eq('id', eleveId)
+    const maintenant = new Date().toISOString()
+    await supabase.from('eleves').update({
+      statut: 'liste_attente',
+      retire_de_classe_id: classeId,
+      retire_de_niveau_id: niveauId,
+      retire_le: maintenant,
+    }).eq('id', eleveId)
     setEleves(prev => prev.map(e => e.id === eleveId ? { ...e, statut: 'liste_attente' } : e))
-    const eleve = eleves.find(e => e.id === eleveId)
     if (eleve) setElevesHorsGroupe(prev => [...prev, eleve])
     await sauvegarderAllocation(aff, null)
+    setCorbeilleRetraits(prev => [{ eleveId, classeId, niveauId, nom: nomComplet, date: maintenant }, ...prev])
     toast(ar ? 'تمت إزالة التلميذ من القسم' : 'Élève retiré du groupe', 'info')
+  }
+
+  async function rafraichirCorbeilleRetraits() {
+    if (!annee?.id) return
+    const { data } = await supabase.from('eleves').select('id, donnees, retire_de_classe_id, retire_de_niveau_id, retire_le')
+      .eq('annee_id', annee.id).not('retire_le', 'is', null).order('retire_le', { ascending: false })
+    setCorbeilleRetraits((data || []).map(e => ({
+      eleveId: e.id,
+      classeId: e.retire_de_classe_id,
+      niveauId: e.retire_de_niveau_id,
+      nom: `${e.donnees?.prenom || ''} ${e.donnees?.nom || ''}`.trim(),
+      date: e.retire_le,
+    })))
+  }
+
+  async function handleRemettreEnPlace(retrait) {
+    if (!allocation) return
+    const aff = JSON.parse(JSON.stringify(allocation.affectations))
+    const res = aff[retrait.niveauId]
+    const cls = res?.classes?.find(c => c.classeId === retrait.classeId)
+    if (!cls) { toast(ar ? 'القسم لم يعد موجودًا' : "Ce groupe n'existe plus", 'error'); return }
+    if (!cls.elevesIds) cls.elevesIds = []
+    if (!cls.elevesIds.includes(retrait.eleveId)) cls.elevesIds.push(retrait.eleveId)
+    res.nbAcceptes = res.classes.reduce((s, c) => s + (c.elevesIds?.length || 0), 0)
+    await supabase.from('eleves').update({
+      statut: 'accepte',
+      retire_de_classe_id: null,
+      retire_de_niveau_id: null,
+      retire_le: null,
+    }).eq('id', retrait.eleveId)
+    setEleves(prev => prev.map(e => e.id === retrait.eleveId ? { ...e, statut: 'accepte' } : e))
+    setElevesHorsGroupe(prev => prev.filter(e => e.id !== retrait.eleveId))
+    await sauvegarderAllocation(aff, null)
+    setCorbeilleRetraits(prev => prev.filter(r => r.eleveId !== retrait.eleveId))
+    toast(ar ? `✓ تمت إعادة ${retrait.nom} إلى مكانه` : `✓ ${retrait.nom} remis(e) à sa place`, 'success')
   }
 
   async function confirmerAjout(niveauCible, classeIdCible) {
@@ -649,6 +696,13 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
             <button className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
               🖨 {ar ? 'طباعة' : 'Imprimer'}
             </button>
+            {!lectureSeule && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setAfficherCorbeilleAllocation(v => !v)}>
+                🗑 {ar
+                  ? `${afficherCorbeilleAllocation ? 'إخفاء' : 'سلة'} الإزالات${corbeilleRetraits.length > 0 ? ` (${corbeilleRetraits.length})` : ''}`
+                  : `${afficherCorbeilleAllocation ? 'Masquer' : 'Corbeille'} des retraits${corbeilleRetraits.length > 0 ? ` (${corbeilleRetraits.length})` : ''}`}
+              </button>
+            )}
             {groupesFiges.size > 0 && <span style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>🔒 {groupesFiges.size} {ar ? 'قسم مثبت' : 'groupe(s) figé(s)'}</span>}
             {allocation && !modeReaffectation && (
               <div style={{ display: 'flex', gap: 8 }}>
@@ -716,6 +770,47 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {afficherCorbeilleAllocation && (
+        <div className="card" style={{ border: '2px solid var(--warning)' }}>
+          <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>🗑 {ar ? `سلة الإزالات (${corbeilleRetraits.length})` : `Corbeille des retraits (${corbeilleRetraits.length})`}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setAfficherCorbeilleAllocation(false)}>✕ {ar ? 'إغلاق' : 'Fermer'}</button>
+          </div>
+          {corbeilleRetraits.length === 0 ? (
+            <div style={{ color: 'var(--ink-muted)', padding: 16, textAlign: 'center' }}>
+              {ar ? 'لا يوجد تلاميذ تمت إزالتهم في هذه الجلسة' : 'Aucun élève retiré durant cette session'}
+            </div>
+          ) : (
+            <ScrollArrows vertical maxHeight={300}>
+              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--paper2)' }}>
+                  <tr>
+                    <th style={{ padding: '6px 10px', textAlign: 'left' }}>{ar ? 'الاسم' : 'Nom'}</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left' }}>{ar ? 'وقت الإزالة' : 'Retiré à'}</th>
+                    <th style={{ width: 150 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {corbeilleRetraits.map((r, idx) => (
+                    <tr key={`${r.eleveId}-${r.date}`} style={{ borderTop: '1px solid var(--paper2)' }}>
+                      <td style={{ padding: '6px 10px', direction: 'auto' }}>{r.nom}</td>
+                      <td style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
+                        {new Date(r.date).toLocaleTimeString('fr-FR')}
+                      </td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleRemettreEnPlace(r)}>
+                          ↩ {ar ? 'إعادة لمكانه' : 'Remettre à sa place'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArrows>
+          )}
         </div>
       )}
 
