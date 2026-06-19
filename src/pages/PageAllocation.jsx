@@ -107,10 +107,30 @@ function exporterAllocationExcel(allocation, eleves, config, terminologie) {
 function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onClose, terminologie, langue }) {
   const [niveauCible, setNiveauCible] = useState('')
   const [classeCible, setClasseCible] = useState('')
+  const [salleNouvelleClasse, setSalleNouvelleClasse] = useState('')
   const niveauxCompatibles = config.reglesAge.filter(r => eleve.age >= r.ageMin && eleve.age <= r.ageMax)
   const classesDisponibles = niveauCible && allocation?.affectations?.[niveauCible]?.classes ? allocation.affectations[niveauCible].classes : []
+  const niveauVide = !!niveauCible && classesDisponibles.length === 0
   const terme = terminologie?.groupe || 'Groupe'
   const ar = langue === 'ar'
+
+  // Salles déjà utilisées par n'importe quel groupe, toutes niveaux confondus
+  const sallesUtiliseesIds = new Set(
+    Object.values(allocation?.affectations || {}).flatMap(res => (res.classes || []).map(c => c.salle?.id).filter(Boolean))
+  )
+  const sallesDisponibles = (config.salles || []).filter(s => !sallesUtiliseesIds.has(s.id))
+
+  const peutConfirmer = niveauVide
+    ? true // toujours permis : avec ou sans salle (créera le niveau "en attente" si aucune salle dispo)
+    : !!classeCible
+
+  function handleConfirm() {
+    if (niveauVide) {
+      onConfirm(niveauCible, null, salleNouvelleClasse || null)
+    } else {
+      onConfirm(niveauCible, classeCible, null)
+    }
+  }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -123,24 +143,46 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
         </div>
         <div className="form-group">
           <label className="form-label">{ar ? 'المستوى المستهدف' : 'Niveau de destination'}</label>
-          <select className="form-input" value={niveauCible} onChange={e => { setNiveauCible(e.target.value); setClasseCible('') }}>
+          <select className="form-input" value={niveauCible} onChange={e => { setNiveauCible(e.target.value); setClasseCible(''); setSalleNouvelleClasse('') }}>
             <option value="">{ar ? '— اختر —' : '— Choisir —'}</option>
             {niveauxCompatibles.map(r => <option key={r.niveauId} value={r.niveauId}>{r.label}</option>)}
           </select>
         </div>
-        {niveauCible && (
+        {niveauCible && !niveauVide && (
           <div className="form-group">
             <label className="form-label">{terme} {ar ? 'المستهدف' : 'de destination'}</label>
-            {classesDisponibles.length === 0 ? (
-              <div className="alert alert-warning">{ar ? 'لا توجد أقسام في هذا المستوى.' : 'Aucun groupe dans ce niveau.'}</div>
+            <select className="form-input" value={classeCible} onChange={e => setClasseCible(e.target.value)}>
+              <option value="">{ar ? '— اختر —' : '— Choisir —'}</option>
+              {classesDisponibles.map(c => {
+                const nb = eleves.filter(e => c.elevesIds?.includes(e.id)).length
+                return <option key={c.classeId} value={c.classeId}>{terme} {c.classeNum} — {nomSalleComplet(c.salle)} ({nb}/{c.salle.capacite}){nb >= c.salle.capacite ? (ar ? ' ⚠ ممتلئ' : ' ⚠ PLEIN') : ''}</option>
+              })}
+            </select>
+          </div>
+        )}
+        {niveauVide && (
+          <div className="form-group">
+            <div className="alert alert-info" style={{ marginBottom: 12 }}>
+              {ar
+                ? `لا يوجد قسم بعد في هذا المستوى. سيتم إنشاء فوج جديد عند التأكيد.`
+                : `Aucun groupe n'existe encore dans ce niveau. Un nouveau groupe sera créé à la confirmation.`}
+            </div>
+            {sallesDisponibles.length > 0 ? (
+              <>
+                <label className="form-label">{ar ? 'القاعة المخصصة (اختياري)' : 'Salle à assigner (optionnel)'}</label>
+                <select className="form-input" value={salleNouvelleClasse} onChange={e => setSalleNouvelleClasse(e.target.value)}>
+                  <option value="">{ar ? '— بدون قاعة (الانتظار) —' : '— Sans salle (en attente) —'}</option>
+                  {sallesDisponibles.map(s => (
+                    <option key={s.id} value={s.id}>{nomSalleComplet(s)} ({s.capacite} {ar ? 'مكان' : 'places'})</option>
+                  ))}
+                </select>
+              </>
             ) : (
-              <select className="form-input" value={classeCible} onChange={e => setClasseCible(e.target.value)}>
-                <option value="">{ar ? '— اختر —' : '— Choisir —'}</option>
-                {classesDisponibles.map(c => {
-                  const nb = eleves.filter(e => c.elevesIds?.includes(e.id)).length
-                  return <option key={c.classeId} value={c.classeId}>{terme} {c.classeNum} — {nomSalleComplet(c.salle)} ({nb}/{c.salle.capacite}){nb >= c.salle.capacite ? (ar ? ' ⚠ ممتلئ' : ' ⚠ PLEIN') : ''}</option>
-                })}
-              </select>
+              <div className="alert alert-warning">
+                {ar
+                  ? '⚠ لا توجد قاعة متاحة حاليًا. سيُنشأ المستوى دون قاعة، ويجب إعادة حساب التوزيع لاحقًا.'
+                  : "⚠ Aucune salle disponible actuellement. Le niveau sera créé sans salle ; il faudra recalculer la répartition ensuite."}
+              </div>
             )}
           </div>
         )}
@@ -151,7 +193,7 @@ function ModalAjouterAGroupe({ eleve, allocation, config, eleves, onConfirm, onC
           return null
         })()}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button className="btn btn-primary" disabled={!classeCible} onClick={() => onConfirm(niveauCible, classeCible)}>
+          <button className="btn btn-primary" disabled={!peutConfirmer} onClick={handleConfirm}>
             {ar ? '✓ إضافة إلى القسم' : '✓ Ajouter dans ce groupe'}
           </button>
           <button className="btn btn-ghost" onClick={onClose}>{ar ? 'إلغاء' : 'Annuler'}</button>
@@ -626,7 +668,7 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     toast(ar ? `✓ تمت إعادة ${retrait.nom} إلى مكانه` : `✓ ${retrait.nom} remis(e) à sa place`, 'success')
   }
 
-  async function confirmerAjout(niveauCible, classeIdCible) {
+  async function confirmerAjout(niveauCible, classeIdCible, salleIdNouvelleClasse) {
     if (!modalEleve || !allocation) return
     const { eleve } = modalEleve
     const aff = JSON.parse(JSON.stringify(allocation.affectations))
@@ -635,8 +677,33 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
         if (cls.elevesIds) cls.elevesIds = cls.elevesIds.filter(id => id !== eleve.id)
       }
     }
-    const clsCible = aff[niveauCible]?.classes?.find(c => c.classeId === classeIdCible)
-    if (clsCible) { if (!clsCible.elevesIds) clsCible.elevesIds = []; clsCible.elevesIds.push(eleve.id) }
+
+    let niveauNouvellementCree = false
+    let salleAssignee = null
+
+    // Cas : le niveau n'a encore aucun groupe → on le crée à la volée
+    if (!aff[niveauCible] || !aff[niveauCible].classes || aff[niveauCible].classes.length === 0) {
+      const regleNiveau = config.reglesAge.find(r => r.niveauId === niveauCible)
+      const salle = salleIdNouvelleClasse ? (config.salles || []).find(s => s.id === salleIdNouvelleClasse) : null
+      const nouveauGroupe = {
+        classeId: niveauCible + '_c1',
+        classeNum: 1,
+        salle: salle || null,
+        elevesIds: [eleve.id],
+      }
+      aff[niveauCible] = {
+        ...(aff[niveauCible] || {}),
+        label: regleNiveau?.label || niveauCible,
+        classes: [nouveauGroupe],
+      }
+      niveauNouvellementCree = true
+      salleAssignee = salle
+      classeIdCible = nouveauGroupe.classeId
+    } else {
+      const clsCible = aff[niveauCible]?.classes?.find(c => c.classeId === classeIdCible)
+      if (clsCible) { if (!clsCible.elevesIds) clsCible.elevesIds = []; clsCible.elevesIds.push(eleve.id) }
+    }
+
     for (const res of Object.values(aff)) {
       if (res.classes) res.nbAcceptes = res.classes.reduce((s, c) => s + (c.elevesIds?.length || 0), 0)
     }
@@ -645,6 +712,17 @@ export default function PageAllocation({ lectureSeule, nomEtab, anneeLabel }) {
     setElevesHorsGroupe(prev => prev.filter(e => e.id !== eleve.id))
     await sauvegarderAllocation(aff, null)
     setModalEleve(null)
+
+    if (niveauNouvellementCree && !salleAssignee) {
+      const regleNiveau = config.reglesAge.find(r => r.niveauId === niveauCible)
+      window.alert(ar
+        ? `تم إنشاء مستوى "${regleNiveau?.label || niveauCible}" بدون قاعة متاحة حاليًا.\n\nيُنصح بإعادة حساب التوزيع لتعيين قاعة لهذا المستوى.`
+        : `Le niveau "${regleNiveau?.label || niveauCible}" a été créé sans salle disponible pour le moment.\n\nIl est recommandé de recalculer la répartition pour lui assigner une salle.`)
+      if (window.confirm(ar ? 'هل تريد إعادة الحساب الآن ؟' : 'Voulez-vous recalculer la répartition maintenant ?')) {
+        handleOptimiser()
+        return
+      }
+    }
     toast(ar ? `تمت إضافة ${eleve.prenom} ${eleve.nom} إلى القسم` : `${eleve.prenom} ${eleve.nom} ajouté au groupe`, 'success')
   }
 
