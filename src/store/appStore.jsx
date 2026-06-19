@@ -261,7 +261,7 @@ export function AppProvider({ children }) {
     } else {
       setConfigState(DEFAULT_CONFIG)
     }
-    const { data: elevesData } = await supabase.from('eleves').select('*').eq('annee_id', anneeObj.id).order('date_inscription')
+    const { data: elevesData } = await supabase.from('eleves').select('*').eq('annee_id', anneeObj.id).is('supprime_le', null).order('date_inscription')
     setEleves((elevesData || [])
       .map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: e.statut, force: e.force, dateInscription: e.date_inscription }))
       .sort((a, b) => {
@@ -337,9 +337,31 @@ export function AppProvider({ children }) {
   }, [annee, config])
 
   const supprimerEleve = useCallback(async (id) => {
-    await supabase.from('eleves').delete().eq('id', id)
+    await supabase.from('eleves').update({ supprime_le: new Date().toISOString() }).eq('id', id)
     setEleves(prev => prev.filter(e => e.id !== id))
   }, [])
+
+  const restaurerEleve = useCallback(async (id) => {
+    const { data, error } = await supabase.from('eleves').update({ supprime_le: null }).eq('id', id).select().single()
+    if (error || !data) return { error: error?.message || 'Élève introuvable' }
+    const eleveRestaure = { id: data.id, ...data.donnees, age: data.age, niveauId: data.niveau_id, statut: data.statut, force: data.force, dateInscription: data.date_inscription }
+    setEleves(prev => [...prev, eleveRestaure].sort((a, b) => new Date(a.dateInscription) - new Date(b.dateInscription)))
+    return { data: eleveRestaure }
+  }, [])
+
+  const chargerCorbeille = useCallback(async () => {
+    if (!annee) return []
+    const { data, error } = await supabase.from('eleves').select('*').eq('annee_id', annee.id).not('supprime_le', 'is', null).order('supprime_le', { ascending: false })
+    if (error) { console.error(error); return [] }
+    return (data || []).map(e => ({ id: e.id, ...e.donnees, age: e.age, niveauId: e.niveau_id, statut: e.statut, dateInscription: e.date_inscription, supprimeLe: e.supprime_le }))
+  }, [annee])
+
+  const viderCorbeille = useCallback(async () => {
+    if (!annee) return { error: 'Aucune année active' }
+    const { error } = await supabase.from('eleves').delete().eq('annee_id', annee.id).not('supprime_le', 'is', null)
+    if (error) return { error: error.message }
+    return { success: true }
+  }, [annee])
 
   const forcerEleve = useCallback(async (id, forcer) => {
     await supabase.from('eleves').update({ force: forcer }).eq('id', id)
@@ -491,7 +513,7 @@ export function AppProvider({ children }) {
   }, [])
 
   return (
-    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, ajouterElevesBatch, supprimerEleve, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs, chargerSauvegardesAllocations, sauvegarderAllocationNommee, renommerSauvegardeAllocation, supprimerSauvegardeAllocation, chargerSauvegardeAllocation }}>
+    <AppContext.Provider value={{ annee, config, setConfig, eleves, setEleves, allocation, setAllocation, modeAllocation, setModeAllocation, onglet, setOnglet, dbLoading, chargerAnnee, ajouterEleve, ajouterElevesBatch, supprimerEleve, restaurerEleve, chargerCorbeille, viderCorbeille, forcerEleve, lancerOptimisation, chargerDonneesTest, reinitialiser, creerSauvegarde, effacerToutesInscriptions, incrementerModifs, chargerSauvegardesAllocations, sauvegarderAllocationNommee, renommerSauvegardeAllocation, supprimerSauvegardeAllocation, chargerSauvegardeAllocation }}>
       {children}
     </AppContext.Provider>
   )

@@ -351,13 +351,98 @@ function ImportExcel() {
   )
 }
 
+function Corbeille({ onClose }) {
+  const { chargerCorbeille, restaurerEleve, viderCorbeille, config } = useApp()
+  const { langue } = useI18n()
+  const toast = useToast()
+  const ar = langue === 'ar'
+  const [eleves, setEleves] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  async function rafraichir() {
+    setLoading(true)
+    const data = await chargerCorbeille()
+    setEleves(data)
+    setLoading(false)
+  }
+
+  useEffect(() => { rafraichir() }, [])
+
+  async function handleRestaurer(id, nom) {
+    const res = await restaurerEleve(id)
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    toast(ar ? `✓ تم استرجاع ${nom}` : `✓ ${nom} restauré(e)`, 'success')
+    rafraichir()
+  }
+
+  async function handleViderCorbeille() {
+    if (!window.confirm(ar ? 'حذف نهائي لكل العناصر في سلة المهملات ؟ لا يمكن التراجع.' : 'Supprimer définitivement tous les éléments de la corbeille ? Action irréversible.')) return
+    const res = await viderCorbeille()
+    if (res.error) { toast('Erreur : ' + res.error, 'error'); return }
+    toast(ar ? '✓ تم إفراغ السلة' : '✓ Corbeille vidée', 'success')
+    rafraichir()
+  }
+
+  return (
+    <div className="card" style={{ border: '2px solid var(--warning)' }}>
+      <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>🗑 {ar ? `سلة المهملات (${eleves.length})` : `Corbeille (${eleves.length})`}</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {eleves.length > 0 && (
+            <button className="btn btn-danger btn-sm" onClick={handleViderCorbeille}>
+              {ar ? 'إفراغ السلة' : 'Vider la corbeille'}
+            </button>
+          )}
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕ {ar ? 'إغلاق' : 'Fermer'}</button>
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ color: 'var(--ink-muted)', padding: 20, textAlign: 'center' }}>{ar ? 'تحميل…' : 'Chargement…'}</div>
+      ) : eleves.length === 0 ? (
+        <div style={{ color: 'var(--ink-muted)', padding: 20, textAlign: 'center' }}>{ar ? 'السلة فارغة' : 'La corbeille est vide'}</div>
+      ) : (
+        <ScrollArrows vertical maxHeight={400}>
+          <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--paper2)' }}>
+              <tr>
+                <th style={{ padding: '6px 10px', textAlign: 'left' }}>{ar ? 'الاسم' : 'Nom'}</th>
+                <th style={{ padding: '6px 10px', textAlign: 'left' }}>{ar ? 'العمر' : 'Âge'}</th>
+                <th style={{ padding: '6px 10px', textAlign: 'left' }}>{ar ? 'تاريخ الحذف' : 'Supprimé le'}</th>
+                <th style={{ width: 110 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {eleves.map(e => (
+                <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
+                  <td style={{ padding: '6px 10px', direction: 'auto' }}>{e.prenom} {e.nom}</td>
+                  <td style={{ padding: '6px 10px' }}>{e.age}</td>
+                  <td style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
+                    {new Date(e.supprimeLe).toLocaleString('fr-FR')}
+                  </td>
+                  <td style={{ padding: '6px 10px' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleRestaurer(e.id, `${e.prenom} ${e.nom}`)}>
+                      ↩ {ar ? 'استرجاع' : 'Restaurer'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollArrows>
+      )}
+    </div>
+  )
+}
+
 function ListeInscriptions({ onEditer, lectureSeule }) {
-  const { config, eleves, supprimerEleve, allocation } = useApp()
+  const { config, eleves, supprimerEleve, restaurerEleve, allocation } = useApp()
   const { t, langue } = useI18n()
   const toast = useToast()
   const ti = t.inscriptions
   const [filtre, setFiltre] = useState('')
   const [filtreNiveau, setFiltreNiveau] = useState('')
+  const [annulationEnAttente, setAnnulationEnAttente] = useState(null) // { id, nom, timeoutId }
+  const [afficherCorbeille, setAfficherCorbeille] = useState(false)
 
   function exporterExcel() {
     const wb = XLSX.utils.book_new()
@@ -417,7 +502,18 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
   function confirmerSupprimer(e) {
     if (!window.confirm(interpoler(ti.confirm_suppr, { prenom: e.prenom, nom: e.nom }))) return
     supprimerEleve(e.id)
-    toast(`${e.prenom} ${e.nom} supprimé(e)`, 'info')
+    const nomComplet = `${e.prenom} ${e.nom}`
+    const timeoutId = setTimeout(() => setAnnulationEnAttente(prev => prev?.id === e.id ? null : prev), 10000)
+    setAnnulationEnAttente({ id: e.id, nom: nomComplet, timeoutId })
+  }
+
+  async function handleAnnulerSuppression() {
+    if (!annulationEnAttente) return
+    clearTimeout(annulationEnAttente.timeoutId)
+    const res = await restaurerEleve(annulationEnAttente.id)
+    if (res.error) { toast('Erreur : ' + res.error, 'error') }
+    else { toast(`${annulationEnAttente.nom} restauré(e)`, 'success') }
+    setAnnulationEnAttente(null)
   }
 
   function statutBadge(statut) {
@@ -450,7 +546,17 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
         <button className="btn btn-success btn-sm" onClick={exporterExcel} disabled={eleves.length === 0}>
           📊 {langue === 'ar' ? 'تصدير Excel' : 'Export Excel'}
         </button>
+        {!lectureSeule && (
+          <button className="btn btn-ghost btn-sm" onClick={() => setAfficherCorbeille(v => !v)}>
+            🗑 {langue === 'ar' ? (afficherCorbeille ? 'إخفاء السلة' : 'سلة المهملات') : (afficherCorbeille ? 'Masquer la corbeille' : 'Corbeille')}
+          </button>
+        )}
       </div>
+      {afficherCorbeille && (
+        <div style={{ marginBottom: 20 }}>
+          <Corbeille onClose={() => setAfficherCorbeille(false)} />
+        </div>
+      )}
       {elevesFiltrés.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ink-muted)', fontSize: '1rem' }}>
           {eleves.length === 0 ? ti.aucune_inscr : ti.aucun_filtre}
@@ -546,6 +652,20 @@ function ListeInscriptions({ onEditer, lectureSeule }) {
             </tbody>
           </table>
         </ScrollArrows>
+      )}
+
+      {annulationEnAttente && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--ink)', color: 'white', padding: '12px 20px', borderRadius: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: 14,
+          zIndex: 998, fontSize: '0.9rem',
+        }}>
+          <span>🗑 {annulationEnAttente.nom} {langue === 'ar' ? 'تم حذفه' : 'supprimé(e)'}</span>
+          <button className="btn btn-sm" style={{ background: 'var(--accent2)', color: 'white', fontWeight: 700 }} onClick={handleAnnulerSuppression}>
+            ↩ {langue === 'ar' ? 'تراجع' : 'Annuler'}
+          </button>
+        </div>
       )}
     </div>
   )
