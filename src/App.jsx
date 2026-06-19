@@ -85,7 +85,7 @@ export default function App() {
           </div>
           {annee && (
             <div style={{ fontSize: '0.9rem', color: '#a8c070', fontWeight: 600 }}>
-              {annee.label}
+              {annee.alias || annee.label}
               {anneeArchivee && <span style={{ fontSize: '0.75rem', color: '#fbbf24', marginLeft: 8 }}>🔒 {isRtl ? 'أرشيف' : 'Archive'}</span>}
             </div>
           )}
@@ -153,7 +153,7 @@ export default function App() {
             </span>
             <NomEtab nom={nomEtab} style={{ fontSize: '1rem', fontWeight: 700, color: '#c8e06a' }} />
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-            <span style={{ fontSize: '0.95rem', color: 'white', fontWeight: 600 }}>{annee.label}</span>
+            <span style={{ fontSize: '0.95rem', color: 'white', fontWeight: 600 }}>{annee.alias || annee.label}</span>
             {anneeArchivee && <span style={{ fontSize: '0.78rem', color: '#fbbf24' }}>🔒 {isRtl ? 'أرشيف' : 'Archive'}</span>}
           </div>
 
@@ -196,8 +196,8 @@ export default function App() {
           <main style={{ flex: 1 }}>
             {onglet === 'config_salles'    && <PageConfigSalles    lectureSeule={anneeArchivee || role === 'operateur'} />}
             {onglet === 'config_interface' && <PageConfigInterface  lectureSeule={anneeArchivee || role === 'operateur'} />}
-            {onglet === 'inscriptions'     && <PageInscriptions     lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.label} />}
-            {onglet === 'allocation'       && <PageAllocation       lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.label} />}
+            {onglet === 'inscriptions'     && <PageInscriptions     lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.alias || annee?.label} />}
+            {onglet === 'allocation'       && <PageAllocation       lectureSeule={anneeArchivee} nomEtab={nomEtab} anneeLabel={annee?.alias || annee?.label} />}
             {onglet === 'restauration'    && <PageRestauration />}
           </main>
         </>

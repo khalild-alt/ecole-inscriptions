@@ -1,6 +1,7 @@
 // src/pages/PageLogin.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/useAuth'
+import { supabase } from '../lib/supabase'
 import fr from '../i18n/fr'
 
 export default function PageLogin() {
@@ -10,6 +11,12 @@ export default function PageLogin() {
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [titreApp, setTitreApp] = useState(t.app_titre)
+
+  useEffect(() => {
+    supabase.from('parametres_globaux').select('valeur').eq('cle', 'nom_app_login').maybeSingle()
+      .then(({ data }) => { if (data?.valeur) setTitreApp(data.valeur) })
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -30,7 +37,7 @@ export default function PageLogin() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏫</div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: 'var(--ink)', marginBottom: 6 }}>
-            {t.app_titre}
+            {titreApp}
           </h1>
           <p style={{ color: 'var(--ink-muted)', fontSize: '0.85rem' }}>{t.app_sous}</p>
         </div>

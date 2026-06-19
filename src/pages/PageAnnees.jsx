@@ -97,7 +97,7 @@ export default function PageAnnees({ onSelectAnnee }) {
                     </span>
                   </div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--ink)', marginBottom: 4 }}>
-                    {anneeOuverte.label}
+                    {anneeOuverte.alias || anneeOuverte.label}
                   </div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>
                     {new Date(anneeOuverte.created_at).toLocaleDateString('fr-FR')}
@@ -130,7 +130,7 @@ export default function PageAnnees({ onSelectAnnee }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                     <div>
                       <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: 'var(--ink-light)', marginBottom: 2 }}>
-                        🔒 {a.label}
+                        🔒 {a.alias || a.label}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
                         {new Date(a.created_at).toLocaleDateString('fr-FR')}
