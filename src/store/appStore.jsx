@@ -107,17 +107,12 @@ export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
   if (!niveaux.length || !salles.length) return { affectations: {}, score: 0 }
 
   const sallesSorted = [...salles].sort((a, b) => b.capacite - a.capacite)
-  const niveauxTriesDesc = [...niveaux].sort((a, b) => demandesParNiveau[b].length - demandesParNiveau[a].length)
 
-  // Phase 1 : garantir 1 salle par niveau (priorité aux niveaux les plus peuplés)
-  const sallesRestantes = [...sallesSorted]
-  const assignationInitiale = {}
-  niveaux.forEach(n => assignationInitiale[n] = [])
-  for (const n of niveauxTriesDesc) {
-    if (sallesRestantes.length > 0) assignationInitiale[n].push(sallesRestantes.shift())
-  }
-
-  // Phase 2 : backtracking sur les salles restantes
+  // Backtracking exhaustif : pour CHAQUE salle, on essaie de l'attribuer à
+  // CHAQUE niveau (y compris en laissant un niveau sans salle si besoin).
+  // On ne fige plus de pré-attribution "1 salle par niveau" avant la recherche :
+  // cela évitait à l'algorithme de revenir sur un choix sous-optimal une fois
+  // qu'un niveau à fort effectif avait déjà consommé sa plus grande salle.
   function scoreDistrib(distrib) {
     return niveaux.reduce((s, n) => {
       const cap = distrib[n].reduce((c, sl) => c + sl.capacite, 0)
@@ -127,28 +122,47 @@ export function optimiserAllocation(demandesParNiveau, salles, mode = 'C') {
 
   let meilleurScore = -1
   let meilleureDistrib = null
+  let meilleureNbSallesUtilisees = Infinity
 
-  function backtrack(idx, distrib) {
-    if (idx === sallesRestantes.length) {
+  // Borne supérieure du score encore atteignable : capacité totale des salles
+  // pas encore distribuées + ce qui est déjà garanti par la distribution en cours.
+  // Permet de couper une branche dès qu'elle ne peut plus battre le meilleur score trouvé
+  // (élagage exact : ne change jamais le résultat optimal, accélère juste la recherche).
+  const capaciteTotaleSalles = sallesSorted.reduce((s, sl) => s + sl.capacite, 0)
+
+  function backtrack(idx, distrib, capaciteRestanteASsigner) {
+    if (idx === sallesSorted.length) {
       const s = scoreDistrib(distrib)
-      if (s > meilleurScore) {
+      const nbSallesUtilisees = niveaux.reduce((n, niv) => n + distrib[niv].length, 0)
+      // À score égal, on préfère la solution qui utilise le moins de salles
+      // "inutilement" dispersées (déterminisme, lisibilité du résultat).
+      if (s > meilleurScore || (s === meilleurScore && nbSallesUtilisees < meilleureNbSallesUtilisees)) {
         meilleurScore = s
+        meilleureNbSallesUtilisees = nbSallesUtilisees
         meilleureDistrib = {}
         niveaux.forEach(n => meilleureDistrib[n] = [...distrib[n]])
       }
       return
     }
-    const salle = sallesRestantes[idx]
+    // Élagage : le score déjà acquis dans cette branche + tout ce qui reste
+    // encore à distribuer (au mieux) ne peut pas dépasser le meilleur score
+    // déjà trouvé -> on arrête d'explorer cette branche (élagage exact,
+    // ne change jamais le résultat optimal, accélère juste la recherche).
+    const scoreActuelPartiel = scoreDistrib(distrib)
+    if (scoreActuelPartiel + capaciteRestanteASsigner <= meilleurScore) {
+      return
+    }
+    const salle = sallesSorted[idx]
     for (const n of niveaux) {
       distrib[n].push(salle)
-      backtrack(idx + 1, distrib)
+      backtrack(idx + 1, distrib, capaciteRestanteASsigner - salle.capacite)
       distrib[n].pop()
     }
   }
 
   const distribBT = {}
-  niveaux.forEach(n => distribBT[n] = [...assignationInitiale[n]])
-  backtrack(0, distribBT)
+  niveaux.forEach(n => distribBT[n] = [])
+  backtrack(0, distribBT, capaciteTotaleSalles)
 
   // Construire le résultat avec classes
   const affectations = {}
