@@ -17,6 +17,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
  */
 export default function ScrollArrows({ children, vertical = false, maxHeight, step = 220, style = {} }) {
   const ref = useRef(null)
+  const contentRef = useRef(null)
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(false)
   const [canUp, setCanUp] = useState(false)
@@ -34,17 +35,39 @@ export default function ScrollArrows({ children, vertical = false, maxHeight, st
   }, [vertical])
 
   useEffect(() => {
-    checkScroll()
     const el = ref.current
     if (!el) return
+
+    // Vérification immédiate + après le premier paint complet (le contenu,
+    // ex. un <table>, peut ne pas avoir sa taille finale au tout premier rendu)
+    checkScroll()
+    const raf1 = requestAnimationFrame(() => {
+      checkScroll()
+      const raf2 = requestAnimationFrame(checkScroll)
+      return () => cancelAnimationFrame(raf2)
+    })
+
     el.addEventListener('scroll', checkScroll, { passive: true })
     window.addEventListener('resize', checkScroll)
+
+    // Observe le conteneur ET le contenu interne : un tableau qui change de
+    // largeur/hauteur après chargement de données ne redimensionne pas
+    // toujours le conteneur au même tick.
     const ro = new ResizeObserver(checkScroll)
     ro.observe(el)
+    if (contentRef.current) ro.observe(contentRef.current)
+
+    // Détecte aussi les changements de contenu (ex: lignes ajoutées/retirées
+    // dynamiquement) qui ne déclenchent pas toujours un resize.
+    const mo = new MutationObserver(checkScroll)
+    if (contentRef.current) mo.observe(contentRef.current, { childList: true, subtree: true })
+
     return () => {
+      cancelAnimationFrame(raf1)
       el.removeEventListener('scroll', checkScroll)
       window.removeEventListener('resize', checkScroll)
       ro.disconnect()
+      mo.disconnect()
     }
   }, [checkScroll, children])
 
@@ -116,7 +139,9 @@ export default function ScrollArrows({ children, vertical = false, maxHeight, st
           overscrollBehaviorX: 'contain',
         }}
       >
-        {children}
+        <div ref={contentRef} style={{ display: vertical ? 'block' : 'inline-block', minWidth: '100%' }}>
+          {children}
+        </div>
       </div>
     </div>
   )
