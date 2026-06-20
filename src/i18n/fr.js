@@ -10,6 +10,7 @@ export default {
     inscriptions:     'Inscriptions',
     allocation:       'Allocation',
     export:           'Export',
+    restauration:     'Restauration',
   },
 
   // ── Header ──────────────────────────────────────────────────

@@ -219,6 +219,18 @@ export default function PageSuperAdmin() {
     charger()
   }
 
+  async function renommerEtablissement(id, nomAffichageActuel, nomTechnique) {
+    const nouveauNom = window.prompt(
+      `Nom d'affichage pour "${nomTechnique}" (texte montré dans l'interface, peut être en arabe) :`,
+      nomAffichageActuel || ''
+    )
+    if (nouveauNom === null) return
+    const { error } = await supabase.from('etablissements').update({ nom_affichage: nouveauNom.trim() || null }).eq('id', id)
+    if (error) { toast('Erreur : ' + error.message, 'error'); return }
+    toast('Nom d\'affichage mis à jour', 'success')
+    charger()
+  }
+
   async function modifierAliasAnnee(id, labelActuel, aliasActuel) {
     const nouvelAlias = window.prompt(
       `Texte personnalisé à afficher à la place de "${labelActuel}" (laisser vide pour revenir au nom technique) :`,
@@ -249,11 +261,14 @@ export default function PageSuperAdmin() {
             <div className="card-title"><span>🏫</span> Établissements ({etablissements.length})</div>
             {loading ? <div style={{ color: 'var(--ink-muted)' }}>Chargement…</div> : (
               <table>
-                <thead><tr><th>Nom</th><th>Ville</th><th>Statut</th><th></th></tr></thead>
+                <thead><tr><th>Nom technique</th><th>Nom d'affichage</th><th>Ville</th><th>Statut</th><th></th></tr></thead>
                 <tbody>
                   {etablissements.map(e => (
                     <tr key={e.id}>
                       <td><strong>{e.nom}</strong></td>
+                      <td style={{ direction: 'auto', color: e.nom_affichage ? 'var(--accent)' : 'var(--ink-muted)' }}>
+                        {e.nom_affichage || <em>— identique au nom technique —</em>}
+                      </td>
                       <td>{e.ville || '—'}</td>
                       <td>
                         <span className={`badge ${e.actif ? 'badge-accepte' : 'badge-liste'}`}>
@@ -261,12 +276,17 @@ export default function PageSuperAdmin() {
                         </span>
                       </td>
                       <td>
-                        <button
-                          className={`btn btn-sm ${e.actif ? 'btn-ghost' : 'btn-success'}`}
-                          onClick={() => desactiverEtablissement(e.id, e.actif)}
-                        >
-                          {e.actif ? 'Désactiver' : 'Activer'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => renommerEtablissement(e.id, e.nom_affichage, e.nom)}>
+                            ✏️ Renommer
+                          </button>
+                          <button
+                            className={`btn btn-sm ${e.actif ? 'btn-ghost' : 'btn-success'}`}
+                            onClick={() => desactiverEtablissement(e.id, e.actif)}
+                          >
+                            {e.actif ? 'Désactiver' : 'Activer'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
