@@ -105,7 +105,7 @@ export default function PageRestauration() {
 
   return (
     <div className="page">
-      <h2 className="page-title">{langue === 'ar' ? 'استعادة توزيع  مسجل' : 'Restauration des inscriptions'}</h2>
+      <h2 className="page-title">{langue === 'ar' ? 'استرجاع توزيع  مسجل' : 'Restauration des inscriptions'}</h2>
       <p className="page-subtitle">
         {langue === 'ar'
           ? 'اختر نسخة احتياطية لاستعادتها. تُحفظ آخر 20 نسخة.'
