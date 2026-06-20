@@ -200,6 +200,12 @@ tr:hover td { background: var(--paper); }
 .toast.info { background: var(--info); }
 @keyframes slide-in { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
+/* ── Details/Summary : masquer le triangle natif (remplacé par une flèche custom plus grande) ── */
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::marker { display: none; content: ''; }
+details[open] > summary .summary-toggle-arrow { transform: rotate(180deg); }
+
 /* ── Divider ── */
 .divider { border: none; border-top: 2px solid var(--paper2); margin: 24px 0; }
 

@@ -249,6 +249,9 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
           {!lectureSeule && !modeReaffectation && (
             <button className="btn btn-sm"
               style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.78rem' }}
+              title={fige
+                ? (ar ? 'تحرير هذا القسم (سيُعاد توزيعه عند إعادة الحساب)' : 'Libérer ce groupe (sera de nouveau modifié lors des recalculs)')
+                : (ar ? 'تجميد هذا القسم (لن يتغيّر عند إعادة الحساب)' : 'Figer ce groupe (ne sera plus modifié lors des recalculs)')}
               onClick={() => onFiger(classe.classeId, !fige)}>
               {fige ? (ar ? '🔓 تحرير' : '🔓 Libérer') : (ar ? '🔒 تجميد' : '🔒 Figer')}
             </button>
@@ -265,34 +268,37 @@ function CarteGroupe({ classe, niveauId, niveauLabel, eleves, config, terminolog
 
       <div style={{ padding: '10px 16px' }}>
         <details>
-          <summary style={{ cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6 }}>
-            👥 {nbEleves} {ar ? 'تلميذ' : 'élève'}{nbEleves > 1 && !ar ? 's' : ''} ▾
+          <summary
+            title={ar ? 'انقر لعرض/إخفاء قائمة التلاميذ' : 'Cliquer pour afficher/masquer la liste des élèves'}
+            style={{ cursor: 'pointer', fontSize: '0.95rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="summary-toggle-arrow" style={{ fontSize: '1.3rem', lineHeight: 1, transition: 'transform 0.15s' }}>▾</span>
+            👥 {nbEleves} {ar ? 'تلميذ' : 'élève'}{nbEleves > 1 && !ar ? 's' : ''}
           </summary>
           <ScrollArrows vertical maxHeight={260}>
-            <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse', direction: ar ? 'rtl' : 'ltr' }}>
               <thead style={{ position: 'sticky', top: 0, background: couleur.light }}>
                 <tr>
-                  <th style={{ padding: '4px 8px', color: couleur.text, fontWeight: 700, fontSize: '0.75rem', textAlign: 'left' }}>#</th>
+                  <th style={{ padding: '6px 6px', color: couleur.text, fontWeight: 700, fontSize: '0.72rem', textAlign: 'center', whiteSpace: 'normal', maxWidth: 40 }}>#</th>
                   {config.champs.filter(c => c.type !== 'computed').map(c => (
-                    <th key={c.id} style={{ padding: '4px 8px', color: couleur.text, fontWeight: 700, fontSize: '0.75rem', direction: 'auto', textAlign: 'left' }}>{c.label}</th>
+                    <th key={c.id} style={{ padding: '6px 6px', color: couleur.text, fontWeight: 700, fontSize: '0.72rem', direction: 'auto', textAlign: 'center', whiteSpace: 'normal', maxWidth: 110, lineHeight: 1.3 }}>{c.label}</th>
                   ))}
-                  <th style={{ padding: '4px 8px', color: couleur.text, fontWeight: 700, fontSize: '0.75rem', textAlign: 'left' }}>{ar ? 'السن' : 'Âge'}</th>
+                  <th style={{ padding: '6px 6px', color: couleur.text, fontWeight: 700, fontSize: '0.72rem', textAlign: 'center', whiteSpace: 'normal', maxWidth: 60 }}>{ar ? 'السن' : 'Âge'}</th>
                   {!lectureSeule && <th style={{ width: 80 }}></th>}
                 </tr>
               </thead>
               <tbody>
                 {elevesGroupe.map((e, idx) => (
                   <tr key={e.id} style={{ borderTop: `1px solid ${couleur.light}` }}>
-                    <td style={{ padding: '5px 8px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
+                    <td style={{ padding: '5px 6px', color: 'var(--ink-muted)', textAlign: 'center' }}>{idx + 1}</td>
                     {config.champs.filter(c => c.type !== 'computed').map(c => (
-                      <td key={c.id} style={{ padding: '5px 8px', direction: 'auto' }}>{e[c.id] || '—'}</td>
+                      <td key={c.id} style={{ padding: '5px 6px', direction: 'auto', textAlign: 'center' }}>{e[c.id] || '—'}</td>
                     ))}
-                    <td style={{ padding: '5px 8px' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
+                    <td style={{ padding: '5px 6px', textAlign: 'center' }}><strong>{e.age}</strong> {ar ? 'سنوات' : 'ans'}</td>
                     {!lectureSeule && (
                       <td style={{ padding: '5px 8px' }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                           <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.72rem' }}
-                            onClick={() => onOuvrirModal(e, niveauId, classe.classeId)} title={ar ? 'نقل' : 'Déplacer'}>↔</button>
+                            onClick={() => onOuvrirModal(e, niveauId, classe.classeId)} title={ar ? 'نقل التلميذ إلى قسم آخر' : 'Déplacer cet élève vers un autre groupe'}>↔</button>
                           <button className="btn btn-danger btn-sm" style={{ fontSize: '0.72rem' }}
                             onClick={() => onRetirer(e.id, classe.classeId, niveauId)}
                             title={ar ? 'إزالة من القسم' : 'Retirer de ce groupe'}>✕</button>
@@ -344,32 +350,36 @@ function CarteNiveau({ niveauId, label, res, eleves, config, terminologie, group
 
         {enAttente.length > 0 && (
           <details style={{ marginTop: 8 }}>
-            <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 600 }}>
-              ⏳ {ar ? `قائمة الانتظار : ${enAttente.length} تلميذ` : `Liste d'attente : ${enAttente.length} élève${enAttente.length > 1 ? 's' : ''}`} ▾
+            <summary
+              title={ar ? 'انقر لعرض/إخفاء قائمة الانتظار' : 'Cliquer pour afficher/masquer la liste d\'attente'}
+              style={{ cursor: 'pointer', fontSize: '0.9rem', color: 'var(--danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="summary-toggle-arrow" style={{ fontSize: '1.2rem', lineHeight: 1, transition: 'transform 0.15s' }}>▾</span>
+              ⏳ {ar ? `قائمة الانتظار : ${enAttente.length} تلميذ` : `Liste d'attente : ${enAttente.length} élève${enAttente.length > 1 ? 's' : ''}`}
             </summary>
             <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 6 }}>
-              <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse', direction: ar ? 'rtl' : 'ltr' }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: '3px 8px', color: 'var(--ink-muted)', fontSize: '0.75rem', textAlign: 'left' }}>#</th>
+                    <th style={{ padding: '5px 6px', color: 'var(--ink-muted)', fontSize: '0.72rem', textAlign: 'center', whiteSpace: 'normal', maxWidth: 40 }}>#</th>
                     {config.champs.filter(c => c.type !== 'computed').map(c => (
-                      <th key={c.id} style={{ padding: '3px 8px', color: 'var(--ink-muted)', fontSize: '0.75rem', direction: 'auto', textAlign: 'left' }}>{c.label}</th>
+                      <th key={c.id} style={{ padding: '5px 6px', color: 'var(--ink-muted)', fontSize: '0.72rem', direction: 'auto', textAlign: 'center', whiteSpace: 'normal', maxWidth: 110, lineHeight: 1.3 }}>{c.label}</th>
                     ))}
-                    <th style={{ padding: '3px 8px', color: 'var(--ink-muted)', fontSize: '0.75rem', textAlign: 'left' }}>{ar ? 'السن' : 'Âge'}</th>
+                    <th style={{ padding: '5px 6px', color: 'var(--ink-muted)', fontSize: '0.72rem', textAlign: 'center', whiteSpace: 'normal', maxWidth: 60 }}>{ar ? 'السن' : 'Âge'}</th>
                     {!lectureSeule && <th style={{ width: 80 }}></th>}
                   </tr>
                 </thead>
                 <tbody>
                   {enAttente.map((e, idx) => (
                     <tr key={e.id} style={{ borderTop: '1px solid var(--paper2)' }}>
-                      <td style={{ padding: '4px 8px', color: 'var(--ink-muted)' }}>{idx + 1}</td>
+                      <td style={{ padding: '4px 6px', color: 'var(--ink-muted)', textAlign: 'center' }}>{idx + 1}</td>
                       {config.champs.filter(c => c.type !== 'computed').map(c => (
-                        <td key={c.id} style={{ padding: '4px 8px', direction: 'auto' }}>{e[c.id] || '—'}</td>
+                        <td key={c.id} style={{ padding: '4px 6px', direction: 'auto', textAlign: 'center' }}>{e[c.id] || '—'}</td>
                       ))}
-                      <td style={{ padding: '4px 8px' }}>{e.age} {ar ? 'سنوات' : 'ans'}</td>
+                      <td style={{ padding: '4px 6px', textAlign: 'center' }}>{e.age} {ar ? 'سنوات' : 'ans'}</td>
                       {!lectureSeule && (
-                        <td style={{ padding: '4px 8px' }}>
+                        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
                           <button className="btn btn-success btn-sm" style={{ fontSize: '0.72rem' }}
+                            title={ar ? 'إضافة هذا التلميذ إلى قسم' : 'Ajouter cet élève à un groupe'}
                             onClick={() => onOuvrirModal(e, niveauId, null)}>
                             {ar ? '+ إضافة' : '+ Ajouter'}
                           </button>
