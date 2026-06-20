@@ -134,28 +134,28 @@ export default function PageRestauration() {
             📂 {langue === 'ar' ? 'النسخ الاحتياطية المتاحة' : 'Sauvegardes disponibles'} ({sauvegardes.length})
           </div>
           <div className="table-wrap">
-            <table>
+            <table style={{ direction: langue === 'ar' ? 'rtl' : 'ltr' }}>
               <thead>
                 <tr>
-                  <th>{langue === 'ar' ? 'التاريخ والوقت' : 'Date et heure'}</th>
-                  <th>{langue === 'ar' ? 'عدد التلاميذ' : 'Nb élèves'}</th>
-                  <th>{langue === 'ar' ? 'النوع' : 'Type'}</th>
+                  <th style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>{langue === 'ar' ? 'التاريخ والوقت' : 'Date et heure'}</th>
+                  <th style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>{langue === 'ar' ? 'عدد التلاميذ' : 'Nb élèves'}</th>
+                  <th style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>{langue === 'ar' ? 'النوع' : 'Type'}</th>
                   <th style={{ width: 180 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {sauvegardes.map(sv => (
                   <tr key={sv.id}>
-                    <td>
+                    <td style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>
                       <strong>{new Date(sv.created_at).toLocaleDateString('fr-FR')}</strong>
                       <span style={{ marginLeft: 8, color: 'var(--ink-muted)', fontSize: '0.85rem' }}>
                         {new Date(sv.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>
                       <span className="badge badge-info">{sv.nb_eleves} {langue === 'ar' ? 'تلميذ' : 'élève(s)'}</span>
                     </td>
-                    <td>
+                    <td style={{ textAlign: langue === 'ar' ? 'right' : 'left' }}>
                       <span style={{ color: declencheurColor(sv.declencheur), fontWeight: 600, fontSize: '0.85rem' }}>
                         {declencheurLabel(sv.declencheur)}
                       </span>
