@@ -12,6 +12,7 @@ export default function PageLogin() {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [titreApp, setTitreApp] = useState(t.app_titre)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     supabase.from('parametres_globaux').select('valeur').eq('cle', 'nom_app_login').maybeSingle()
@@ -48,7 +49,14 @@ export default function PageLogin() {
           </div>
           <div className="form-group">
             <label className="form-label">{t.mot_de_passe}</label>
-            <input className="form-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+            <div style={{ position: 'relative' }}>
+              <input className="form-input" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={{ paddingRight: 44 }} />
+              <button type="button" onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--ink-muted)', padding: 4 }}
+                title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
           {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
           <button className="btn btn-primary" type="submit" disabled={loading}
