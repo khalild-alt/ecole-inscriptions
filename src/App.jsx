@@ -3981,7 +3981,12 @@ export function EquipmentModule({ lang, userId, centreId, locRows, locLevels, eq
     if (data) setEqHistory(prev => [data, ...prev]);
   };
 
+  const centreFilterRef = useRef(centreFilter);
+  useEffect(() => { centreFilterRef.current = centreFilter; }, [centreFilter]);
+
   const handleAddEquipment = async (form, editing, customValues) => {
+    const effectiveCentreId = centreId || centreFilterRef.current || null;
+    console.log("[DEBUG] centreId:", centreId, "centreFilter:", centreFilter, "centreFilterRef:", centreFilterRef.current, "effectiveCentreId:", effectiveCentreId);
     const payload = {
       name: form.name, type: form.type, state_id: form.state_id || null,
       location_path: form.location_path || [], responsible: form.responsible || "",
@@ -3999,7 +4004,7 @@ export function EquipmentModule({ lang, userId, centreId, locRows, locLevels, eq
       num_enregistrement: form.num_enregistrement || "",
       date_enregistrement: form.date_enregistrement || null,
       num_cin: form.num_cin || "",
-      user_id: userId, centre_id: centreId || centreFilter || null,
+      user_id: userId, centre_id: effectiveCentreId,
     };
     const dup = findDuplicateEquipment(form.name, form.type, editing?.id);
     const targetId = editing ? editing.id : dup?.id;
